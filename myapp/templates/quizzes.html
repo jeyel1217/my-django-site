@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Quizzes</h2>
+        <p class="text-slate-500 text-sm mt-1">Test what you've learned and earn badges.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for quiz in quizzes %}
+            <a href="{% url 'quiz_detail' quiz.id %}"
+               class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-red-400 hover:shadow-md transition">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">{{ quiz.title }}</h3>
+                    <p class="text-sm text-slate-500 mt-1">{{ quiz.description|default:"Test your knowledge." }}</p>
+                    <p class="text-xs text-slate-400 mt-2">{{ quiz.total_questions }} question{{ quiz.total_questions|pluralize }}</p>
+                </div>
+                <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 text-xs font-semibold">
+                    {% if quiz.best_score is not None %}
+                        <span class="text-emerald-600">Best: {{ quiz.best_score }}%</span>
+                    {% else %}
+                        <span class="text-slate-400">Not attempted</span>
+                    {% endif %}
+                    <span class="text-red-700">Start <i class="fa-solid fa-arrow-right"></i></span>
+                </div>
+            </a>
+        {% empty %}
+            <div class="col-span-full text-center text-slate-400 p-10 bg-white rounded-xl border border-dashed border-slate-300">
+                No quizzes yet. Add some from the Django admin.
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

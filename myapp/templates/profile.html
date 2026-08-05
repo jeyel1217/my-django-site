@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
+    {% if profile.avatar %}
+        <img src="{{ profile.avatar.url }}" alt="Profile Picture"
+             class="w-32 h-32 rounded-full object-cover mx-auto mb-4 border-4 border-red-50">
+    {% else %}
+        <div class="w-32 h-32 rounded-full bg-red-50 text-red-700 flex items-center justify-center text-4xl font-black mx-auto mb-4">
+            {{ profile.user.username|first|upper }}
+        </div>
+    {% endif %}
+
+    <h2 class="text-xl font-extrabold text-slate-800">{{ profile.user.username }}</h2>
+    <p class="text-slate-500 text-sm mt-2">{{ profile.bio|default:"No bio yet." }}</p>
+
+    <div class="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100 text-sm">
+        <div>
+            <div class="font-bold text-slate-800">{{ profile.lessons_completed }}</div>
+            <div class="text-xs text-slate-400">Lessons</div>
+        </div>
+        <div>
+            <div class="font-bold text-slate-800">{{ profile.badges_earned }}</div>
+            <div class="text-xs text-slate-400">Badges</div>
+        </div>
+        <div>
+            <div class="font-bold text-slate-800">{{ profile.quiz_score_avg }}%</div>
+            <div class="text-xs text-slate-400">Avg Score</div>
+        </div>
+    </div>
+
+    <a href="{% url 'edit_profile' %}"
+       class="inline-block mt-6 bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+        Edit Profile
+    </a>
+</div>
+{% endblock %}

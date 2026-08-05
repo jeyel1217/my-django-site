@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-lg mx-auto bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+    <h2 class="text-xl font-extrabold text-slate-800 mb-6">Edit Profile</h2>
+
+    <form method="POST" enctype="multipart/form-data" class="space-y-5">
+        {% csrf_token %}
+
+        <!-- Avatar preview + upload -->
+        <div>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">AVATAR</label>
+            {% if profile.avatar %}
+                <img src="{{ profile.avatar.url }}" class="w-20 h-20 rounded-full object-cover mb-2">
+            {% endif %}
+            {{ profile_form.avatar }}
+            {% if profile_form.avatar.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ profile_form.avatar.errors|join:", " }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Username / name / email from UserUpdateForm -->
+        <div>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">USERNAME</label>
+            {{ user_form.username }}
+            {% if user_form.username.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ user_form.username.errors|join:", " }}</p>
+            {% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">FIRST NAME</label>
+                {{ user_form.first_name }}
+            </div>
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">LAST NAME</label>
+                {{ user_form.last_name }}
+            </div>
+        </div>
+
+        <div>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">EMAIL</label>
+            {{ user_form.email }}
+            {% if user_form.email.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ user_form.email.errors|join:", " }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Bio from ProfileUpdateForm -->
+        <div>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">BIO</label>
+            {{ profile_form.bio }}
+            {% if profile_form.bio.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ profile_form.bio.errors|join:", " }}</p>
+            {% endif %}
+        </div>
+
+        <div class="flex gap-3">
+            <button type="submit"
+                class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                Save Changes
+            </button>
+            <a href="{% url 'profile' %}"
+               class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

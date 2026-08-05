@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-md mx-auto text-center bg-white p-10 rounded-xl border border-slate-200 shadow-sm">
+    <div class="text-5xl font-black text-red-700 mb-2">{{ score }}%</div>
+    <p class="text-slate-500 mb-6">You got {{ correct_count }} out of {{ total }} correct on "{{ quiz.title }}"</p>
+
+    <div class="flex gap-3 justify-center">
+        <a href="{% url 'quiz_detail' quiz.id %}" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+            Try Again
+        </a>
+        <a href="{% url 'quizzes' %}" class="px-5 py-2.5 rounded-lg bg-red-700 text-white text-sm font-semibold hover:bg-red-800">
+            Back to Quizzes
+        </a>
+    </div>
+</div>
+{% endblock %}

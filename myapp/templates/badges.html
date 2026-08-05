@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Badges</h2>
+        <p class="text-slate-500 text-sm mt-1">Earn badges by completing lessons and quizzes.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for badge in badges %}
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-center
+                        {% if not badge.is_earned %}opacity-40 grayscale{% endif %}">
+                <div class="w-14 h-14 mx-auto rounded-full bg-red-50 text-red-700 flex items-center justify-center text-2xl mb-3">
+                    <i class="{{ badge.icon_class }}"></i>
+                </div>
+                <h3 class="font-bold text-slate-800 text-sm">{{ badge.name }}</h3>
+                <p class="text-xs text-slate-500 mt-1">{{ badge.description }}</p>
+                {% if not badge.is_earned %}
+                    <p class="text-[10px] text-slate-400 mt-2 uppercase tracking-wide">Locked</p>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="col-span-full text-center text-slate-400 p-10 bg-white rounded-xl border border-dashed border-slate-300">
+                No badges defined yet. Add some from the Django admin.
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
