@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-lg mx-auto space-y-6">
+    <a href="{% url 'admin_user_list' %}" class="text-sm text-slate-500 hover:text-red-700">
+        <i class="fa-solid fa-arrow-left"></i> Back to Users
+    </a>
+
+    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-extrabold text-slate-800 mb-1">Create Mentor Account</h2>
+        <p class="text-slate-500 text-sm mb-6">
+            Mentors cannot self-register — Admin creates their account and shares the credentials.
+        </p>
+
+        <form method="POST" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">USERNAME</label>
+                {{ form.username }}
+                {% if form.username.errors %}<p class="text-xs text-red-600 mt-1">{{ form.username.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">EMAIL (optional)</label>
+                {{ form.email }}
+                {% if form.email.errors %}<p class="text-xs text-red-600 mt-1">{{ form.email.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">TEMPORARY PASSWORD</label>
+                {{ form.password }}
+                <p class="text-xs text-slate-400 mt-1">{{ form.password.help_text }}</p>
+                {% if form.password.errors %}<p class="text-xs text-red-600 mt-1">{{ form.password.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <button type="submit"
+                class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                Create Mentor Account
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

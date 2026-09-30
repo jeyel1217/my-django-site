@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <a href="{% url 'mentor_lessons' %}" class="text-sm text-slate-500 hover:text-red-700">
+        <i class="fa-solid fa-arrow-left"></i> Back to Lessons
+    </a>
+
+    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-extrabold text-slate-800 mb-6">
+            {% if is_edit %}Edit Lesson{% else %}New Lesson{% endif %}
+        </h2>
+
+        <form method="POST" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">TITLE</label>
+                {{ form.title }}
+                {% if form.title.errors %}<p class="text-xs text-red-600 mt-1">{{ form.title.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">ORDER</label>
+                {{ form.order }}
+                {% if form.order.errors %}<p class="text-xs text-red-600 mt-1">{{ form.order.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">CONTENT</label>
+                {{ form.content }}
+                {% if form.content.errors %}<p class="text-xs text-red-600 mt-1">{{ form.content.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <div class="flex items-center gap-2">
+                {{ form.is_published }}
+                <label class="text-sm text-slate-700">Published (visible to Students)</label>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit"
+                    class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                    {% if is_edit %}Save Changes{% else %}Create Lesson{% endif %}
+                </button>
+                <a href="{% url 'mentor_lessons' %}"
+                   class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">Manage Quizzes</h2>
+            <p class="text-slate-500 text-sm mt-1">Create and manage your own quizzes.</p>
+        </div>
+        <a href="{% url 'mentor_quiz_create' %}"
+           class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+            <i class="fa-solid fa-plus"></i> New Quiz
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Title</th>
+                    <th class="text-left px-5 py-3">Linked Lesson</th>
+                    <th class="text-left px-5 py-3">Questions</th>
+                    <th class="text-left px-5 py-3">Status</th>
+                    <th class="text-right px-5 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for quiz in quizzes %}
+                <tr>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ quiz.title }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ quiz.lesson.title|default:"—" }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ quiz.total_questions }}</td>
+                    <td class="px-5 py-3">
+                        {% if quiz.is_published %}
+                            <span class="text-emerald-600 text-xs font-semibold">Published</span>
+                        {% else %}
+                            <span class="text-slate-400 text-xs font-semibold">Draft</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right space-x-3">
+                        <a href="{% url 'mentor_quiz_questions' quiz.pk %}" class="text-red-700 hover:underline font-semibold">Questions</a>
+                        <a href="{% url 'mentor_quiz_edit' quiz.pk %}" class="text-red-700 hover:underline font-semibold">Edit</a>
+                        <a href="{% url 'mentor_quiz_delete' quiz.pk %}" class="text-slate-400 hover:text-red-600 hover:underline font-semibold">Delete</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-slate-400 p-10">
+                        You haven't created any quizzes yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

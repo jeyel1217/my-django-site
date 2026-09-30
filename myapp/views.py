@@ -3,14 +3,17 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from django.utils.text import slugify
 from django.contrib import messages
+from django.db.models import Max, Count, Q
 
 from .models import (
     Profile, Lesson, LessonProgress,
-    Quiz, Question, QuizAttempt,
+    Quiz, Question, Choice, QuizAttempt,
     Badge, UserBadge,
 )
-from .forms import UserUpdateForm, ProfileUpdateForm
+from .forms import UserUpdateForm, ProfileUpdateForm, LessonForm, QuizForm, QuestionForm, MentorCreateForm
+from .decorators import role_required
 
 
 # ---------------------------------------------------------
@@ -18,7 +21,7 @@ from .forms import UserUpdateForm, ProfileUpdateForm
 # ---------------------------------------------------------
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect('dashboard_router')
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
@@ -26,7 +29,7 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('home')
+            return redirect('dashboard_router')
         else:
             messages.error(request, 'Invalid username or password.')
             return render(request, 'login.html')
@@ -41,7 +44,7 @@ def logout_view(request):
 
 def register_view(request):
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect('dashboard_router')
 
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
@@ -56,29 +59,87 @@ def register_view(request):
             messages.error(request, 'That username is already taken.')
             return render(request, 'register.html')
 
+        if email and User.objects.filter(email__iexact=email).exists():
+            messages.error(request, 'This email address is already registered.')
+            return render(request, 'register.html')
+
         user = User.objects.create_user(username=username, email=email, password=password)
-        # Profile is auto-created by the post_save signal in signals.py
+        # Profile is auto-created by the post_save signal in signals.py,
+        # with role defaulting to STUDENT — that's correct for self-registration.
         login(request, user)
-        return redirect('home')
+        return redirect('dashboard_router')
 
     return render(request, 'register.html')
 
 
 # ---------------------------------------------------------
-# Dashboard
+# Dashboard routing (role-based)
 # ---------------------------------------------------------
 @login_required
-def home(request):
+def dashboard_router(request):
+    """Single entry point after login. Sends each role to its own dashboard."""
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    profile.update_streak()
+
+    if profile.role == Profile.ROLE_ADMIN:
+        return redirect('admin_dashboard')
+    elif profile.role == Profile.ROLE_MENTOR:
+        return redirect('mentor_dashboard')
+    else:
+        return redirect('student_dashboard')
+
+
+@login_required
+@role_required(Profile.ROLE_STUDENT)
+def student_dashboard(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     return render(request, 'home.html', {'profile': profile})
 
 
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_dashboard(request):
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    my_lessons = Lesson.objects.filter(created_by=request.user)
+    my_quizzes = Quiz.objects.filter(created_by=request.user)
+    return render(request, 'mentor_dashboard.html', {
+        'profile': profile,
+        'my_lessons': my_lessons,
+        'my_quizzes': my_quizzes,
+    })
+
+
+@login_required
+@role_required(Profile.ROLE_ADMIN)
+def admin_dashboard(request):
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    total_users = User.objects.count()
+    total_students = Profile.objects.filter(role=Profile.ROLE_STUDENT).count()
+    total_mentors = Profile.objects.filter(role=Profile.ROLE_MENTOR).count()
+    inactive_count = User.objects.filter(is_active=False).count()
+    duplicate_email_count = (
+        User.objects.exclude(email='')
+        .values('email')
+        .annotate(c=Count('id'))
+        .filter(c__gt=1)
+        .count()
+    )
+    return render(request, 'admin_dashboard.html', {
+        'profile': profile,
+        'total_users': total_users,
+        'total_students': total_students,
+        'total_mentors': total_mentors,
+        'inactive_count': inactive_count,
+        'duplicate_email_count': duplicate_email_count,
+    })
+
+
 # ---------------------------------------------------------
-# Lessons
+# Lessons (STUDENT-FACING — published only)
 # ---------------------------------------------------------
 @login_required
 def lesson_list(request):
-    lessons = Lesson.objects.all().order_by('order')
+    lessons = Lesson.objects.filter(is_published=True).order_by('order')
     completed_ids = set(
         LessonProgress.objects.filter(user=request.user, completed=True)
         .values_list('lesson_id', flat=True)
@@ -91,13 +152,17 @@ def lesson_list(request):
 
 @login_required
 def lesson_detail(request, slug):
-    lesson = get_object_or_404(Lesson, slug=slug)
+    lesson = get_object_or_404(Lesson, slug=slug, is_published=True)
     progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
 
     if request.method == 'POST' and request.POST.get('action') == 'mark_complete':
         progress.completed = True
         progress.completed_at = timezone.now()
         progress.save()
+
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        profile.update_streak()
+
         messages.success(request, f'"{lesson.title}" marked as complete!')
         return redirect('lesson_detail', slug=slug)
 
@@ -105,26 +170,28 @@ def lesson_detail(request, slug):
 
 
 # ---------------------------------------------------------
-# Quizzes
+# Quizzes (STUDENT-FACING — published only)
 # ---------------------------------------------------------
 @login_required
 def quizzes_view(request):
-    quizzes = Quiz.objects.all()
-    best_scores = {
-        attempt['quiz_id']: attempt['score']
-        for attempt in QuizAttempt.objects.filter(user=request.user).values('quiz_id').annotate()
-    }
-    # Attach the user's best score per quiz for display
+    quizzes = Quiz.objects.filter(is_published=True)
+
+    best_scores = dict(
+        QuizAttempt.objects.filter(user=request.user, quiz__in=quizzes)
+        .values('quiz_id')
+        .annotate(best=Max('score'))
+        .values_list('quiz_id', 'best')
+    )
+
     for quiz in quizzes:
-        attempts = QuizAttempt.objects.filter(user=request.user, quiz=quiz)
-        quiz.best_score = max((a.score for a in attempts), default=None)
+        quiz.best_score = best_scores.get(quiz.id)
 
     return render(request, 'quizzes.html', {'quizzes': quizzes})
 
 
 @login_required
 def quiz_detail(request, quiz_id):
-    quiz = get_object_or_404(Quiz, id=quiz_id)
+    quiz = get_object_or_404(Quiz, id=quiz_id, is_published=True)
     questions = quiz.questions.prefetch_related('choices').all()
 
     if request.method == 'POST':
@@ -137,6 +204,10 @@ def quiz_detail(request, quiz_id):
         total = questions.count()
         score = round((correct_count / total) * 100) if total else 0
         QuizAttempt.objects.create(user=request.user, quiz=quiz, score=score)
+
+        if score >= 50:
+            profile, _ = Profile.objects.get_or_create(user=request.user)
+            profile.update_streak()
 
         check_and_award_badges(request.user)
 
@@ -212,3 +283,274 @@ def edit_profile(request):
         'user_form': user_form,
         'profile_form': profile_form,
     })
+
+
+# ===========================================================
+# MENTOR — Lesson management (own content only)
+# ===========================================================
+def _unique_slug(title, model, exclude_pk=None):
+    base = slugify(title)
+    slug = base
+    n = 1
+    qs = model.objects.filter(slug=slug)
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+    while qs.exists():
+        n += 1
+        slug = f"{base}-{n}"
+        qs = model.objects.filter(slug=slug)
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+    return slug
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_lessons(request):
+    lessons = Lesson.objects.filter(created_by=request.user).order_by('order')
+    return render(request, 'mentor_lessons.html', {'lessons': lessons})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_lesson_create(request):
+    if request.method == 'POST':
+        form = LessonForm(request.POST)
+        if form.is_valid():
+            lesson = form.save(commit=False)
+            lesson.created_by = request.user
+            lesson.slug = _unique_slug(lesson.title, Lesson)
+            lesson.save()
+            messages.success(request, f'Lesson "{lesson.title}" created.')
+            return redirect('mentor_lessons')
+    else:
+        form = LessonForm()
+
+    return render(request, 'mentor_lesson_form.html', {'form': form, 'is_edit': False})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_lesson_edit(request, pk):
+    lesson = get_object_or_404(Lesson, pk=pk, created_by=request.user)
+
+    if request.method == 'POST':
+        form = LessonForm(request.POST, instance=lesson)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            if updated.title != lesson.title:
+                updated.slug = _unique_slug(updated.title, Lesson, exclude_pk=lesson.pk)
+            updated.save()
+            messages.success(request, f'Lesson "{updated.title}" updated.')
+            return redirect('mentor_lessons')
+    else:
+        form = LessonForm(instance=lesson)
+
+    return render(request, 'mentor_lesson_form.html', {'form': form, 'is_edit': True, 'lesson': lesson})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_lesson_delete(request, pk):
+    lesson = get_object_or_404(Lesson, pk=pk, created_by=request.user)
+    if request.method == 'POST':
+        title = lesson.title
+        lesson.delete()
+        messages.success(request, f'Lesson "{title}" deleted.')
+        return redirect('mentor_lessons')
+    return render(request, 'mentor_confirm_delete.html', {'object_label': f'lesson "{lesson.title}"', 'cancel_url': 'mentor_lessons'})
+
+
+# ===========================================================
+# MENTOR — Quiz management (own content only)
+# ===========================================================
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_quizzes(request):
+    quizzes = Quiz.objects.filter(created_by=request.user)
+    return render(request, 'mentor_quizzes.html', {'quizzes': quizzes})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_quiz_create(request):
+    if request.method == 'POST':
+        form = QuizForm(request.POST, mentor_user=request.user)
+        if form.is_valid():
+            quiz = form.save(commit=False)
+            quiz.created_by = request.user
+            quiz.save()
+            messages.success(request, f'Quiz "{quiz.title}" created. Now add some questions.')
+            return redirect('mentor_quiz_questions', pk=quiz.pk)
+    else:
+        form = QuizForm(mentor_user=request.user)
+
+    return render(request, 'mentor_quiz_form.html', {'form': form, 'is_edit': False})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_quiz_edit(request, pk):
+    quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
+
+    if request.method == 'POST':
+        form = QuizForm(request.POST, instance=quiz, mentor_user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Quiz "{quiz.title}" updated.')
+            return redirect('mentor_quizzes')
+    else:
+        form = QuizForm(instance=quiz, mentor_user=request.user)
+
+    return render(request, 'mentor_quiz_form.html', {'form': form, 'is_edit': True, 'quiz': quiz})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_quiz_delete(request, pk):
+    quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
+    if request.method == 'POST':
+        title = quiz.title
+        quiz.delete()
+        messages.success(request, f'Quiz "{title}" deleted.')
+        return redirect('mentor_quizzes')
+    return render(request, 'mentor_confirm_delete.html', {'object_label': f'quiz "{quiz.title}"', 'cancel_url': 'mentor_quizzes'})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_quiz_questions(request, pk):
+    """List existing questions for a quiz the Mentor owns, and add new ones."""
+    quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
+    questions = quiz.questions.prefetch_related('choices').all()
+
+    if request.method == 'POST':
+        form = QuestionForm(request.POST)
+        if form.is_valid():
+            question = Question.objects.create(quiz=quiz, text=form.cleaned_data['text'])
+            correct = form.cleaned_data['correct_choice']
+            for i in range(1, 5):
+                Choice.objects.create(
+                    question=question,
+                    text=form.cleaned_data[f'choice_{i}'],
+                    is_correct=(str(i) == correct),
+                )
+            messages.success(request, 'Question added.')
+            return redirect('mentor_quiz_questions', pk=quiz.pk)
+    else:
+        form = QuestionForm()
+
+    return render(request, 'mentor_quiz_questions.html', {
+        'quiz': quiz, 'questions': questions, 'form': form,
+    })
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_question_delete(request, pk, question_id):
+    quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
+    question = get_object_or_404(Question, pk=question_id, quiz=quiz)
+    if request.method == 'POST':
+        question.delete()
+        messages.success(request, 'Question deleted.')
+    return redirect('mentor_quiz_questions', pk=quiz.pk)
+
+
+# ===========================================================
+# ADMIN — Account management
+# ===========================================================
+@login_required
+@role_required(Profile.ROLE_ADMIN)
+def admin_user_list(request):
+    query = request.GET.get('q', '').strip()
+
+    users = User.objects.select_related('profile').all().order_by('-date_joined')
+    if query:
+        users = users.filter(Q(username__icontains=query) | Q(email__icontains=query))
+
+    # Duplicate-account detection: flag any email address used by more than
+    # one account (ignoring blank emails). Per spec §2 / §6.
+    duplicate_emails = set(
+        User.objects.exclude(email='')
+        .values('email')
+        .annotate(c=Count('id'))
+        .filter(c__gt=1)
+        .values_list('email', flat=True)
+    )
+
+    return render(request, 'admin_users.html', {
+        'users': users,
+        'query': query,
+        'duplicate_emails': duplicate_emails,
+    })
+
+
+@login_required
+@role_required(Profile.ROLE_ADMIN)
+def admin_user_detail(request, user_id):
+    target = get_object_or_404(User.objects.select_related('profile'), pk=user_id)
+    return render(request, 'admin_user_detail.html', {'target': target})
+
+
+@login_required
+@role_required(Profile.ROLE_ADMIN)
+def admin_user_toggle_active(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+
+    if target == request.user:
+        messages.error(request, "You cannot deactivate your own account.")
+        return redirect('admin_user_detail', user_id=user_id)
+
+    if request.method == 'POST':
+        target.is_active = not target.is_active
+        target.save(update_fields=['is_active'])
+        state = "activated" if target.is_active else "deactivated"
+        messages.success(request, f'Account "{target.username}" {state}.')
+
+    return redirect('admin_user_detail', user_id=user_id)
+
+
+@login_required
+@role_required(Profile.ROLE_ADMIN)
+def admin_user_delete(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+
+    if target == request.user:
+        messages.error(request, "You cannot delete your own account.")
+        return redirect('admin_user_detail', user_id=user_id)
+
+    if request.method == 'POST':
+        username = target.username
+        target.delete()
+        messages.success(request, f'Account "{username}" deleted.')
+        return redirect('admin_user_list')
+
+    return render(request, 'admin_confirm_delete.html', {'target': target})
+
+
+@login_required
+@role_required(Profile.ROLE_ADMIN)
+def admin_mentor_create(request):
+    if request.method == 'POST':
+        form = MentorCreateForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            email = form.cleaned_data['email']
+            password = form.cleaned_data['password']
+
+            if User.objects.filter(username=username).exists():
+                messages.error(request, 'That username is already taken.')
+            elif email and User.objects.filter(email__iexact=email).exists():
+                messages.error(request, 'This email address is already registered.')
+            else:
+                user = User.objects.create_user(username=username, email=email, password=password)
+                # Profile auto-created by the signal with role=STUDENT by default;
+                # override it here since an Admin is explicitly creating a Mentor.
+                user.profile.role = Profile.ROLE_MENTOR
+                user.profile.save(update_fields=['role'])
+                messages.success(request, f'Mentor account "{username}" created.')
+                return redirect('admin_user_list')
+    else:
+        form = MentorCreateForm()
+
+    return render(request, 'admin_mentor_create.html', {'form': form})

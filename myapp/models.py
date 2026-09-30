@@ -7,16 +7,60 @@ from django.db.models import Avg
 # PROFILE
 # ---------------------------------------------------------
 class Profile(models.Model):
-    """Extends the built-in User with extra fields + computed stats."""
+    """Extends the built-in User with role, extra fields, and computed stats."""
+
+    ROLE_ADMIN = 'ADMIN'
+    ROLE_MENTOR = 'MENTOR'
+    ROLE_STUDENT = 'STUDENT'
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, 'Admin'),
+        (ROLE_MENTOR, 'Mentor'),
+        (ROLE_STUDENT, 'Student'),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=ROLE_STUDENT)
+
     bio = models.TextField(blank=True, default='')
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     streak_days = models.PositiveIntegerField(default=0)
+    last_active_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return self.user.username
+        return f"{self.user.username} ({self.role})"
 
-    # --- Computed stats used on the dashboard ---
+    # --- Role helpers ---
+    @property
+    def is_admin(self):
+        return self.role == self.ROLE_ADMIN
+
+    @property
+    def is_mentor(self):
+        return self.role == self.ROLE_MENTOR
+
+    @property
+    def is_student(self):
+        return self.role == self.ROLE_STUDENT
+
+    # --- Streak tracking ---
+    def update_streak(self):
+        """Call this once per login/activity. Increments streak if the user was
+        active yesterday, resets to 1 if they missed a day, no-ops if
+        already counted today."""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        today = timezone.localdate()
+        if self.last_active_date == today:
+            return
+        elif self.last_active_date == today - timedelta(days=1):
+            self.streak_days += 1
+        else:
+            self.streak_days = 1
+        self.last_active_date = today
+        self.save(update_fields=['streak_days', 'last_active_date'])
+
+    # --- Computed stats used on the student dashboard ---
     @property
     def total_lessons(self):
         return Lesson.objects.count()
@@ -50,6 +94,15 @@ class Lesson(models.Model):
     slug = models.SlugField(unique=True)
     order = models.PositiveIntegerField(default=0)
     content = models.TextField(help_text="Lesson body. Supports plain text/paragraphs.")
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_lessons',
+        help_text="The Mentor who created this lesson."
+    )
+    is_published = models.BooleanField(
+        default=False,
+        help_text="Unpublished (draft) lessons are hidden from Students."
+    )
 
     class Meta:
         ordering = ['order']
@@ -80,6 +133,15 @@ class Quiz(models.Model):
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='quizzes', null=True, blank=True)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='created_quizzes',
+        help_text="The Mentor who created this quiz."
+    )
+    is_published = models.BooleanField(
+        default=False,
+        help_text="Unpublished (draft) quizzes are hidden from Students."
+    )
 
     def __str__(self):
         return self.title

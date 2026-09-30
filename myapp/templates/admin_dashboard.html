@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Admin Dashboard</h2>
+        <p class="text-slate-500 text-sm mt-1">Welcome, {{ request.user.username }}. System overview below.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">TOTAL USERS</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ total_users }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">STUDENTS</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ total_students }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">MENTORS</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ total_mentors }}</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">DEACTIVATED ACCOUNTS</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ inactive_count }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border {% if duplicate_email_count > 0 %}border-red-300{% else %}border-slate-200{% endif %} shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">DUPLICATE EMAILS FLAGGED</p>
+            <p class="text-2xl font-extrabold {% if duplicate_email_count > 0 %}text-red-600{% else %}text-slate-800{% endif %} mt-1">{{ duplicate_email_count }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-3">
+        <a href="{% url 'admin_user_list' %}"
+           class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+            Manage Users
+        </a>
+        <a href="{% url 'admin_mentor_create' %}"
+           class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+            + Create Mentor Account
+        </a>
+    </div>
+</div>
+{% endblock %}

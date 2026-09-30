@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">Manage Users</h2>
+            <p class="text-slate-500 text-sm mt-1">View, search, and manage all accounts.</p>
+        </div>
+        <a href="{% url 'admin_mentor_create' %}"
+           class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+            <i class="fa-solid fa-user-plus"></i> Create Mentor
+        </a>
+    </div>
+
+    <form method="GET" class="flex gap-2">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search by username or email..."
+               class="flex-1 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-red-500">
+        <button type="submit" class="bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-slate-900">
+            Search
+        </button>
+    </form>
+
+    {% if duplicate_emails %}
+    <div class="px-4 py-3 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        {{ duplicate_emails|length }} email address{{ duplicate_emails|length|pluralize }} used by more than one account
+        (flagged rows below in red).
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Username</th>
+                    <th class="text-left px-5 py-3">Email</th>
+                    <th class="text-left px-5 py-3">Role</th>
+                    <th class="text-left px-5 py-3">Status</th>
+                    <th class="text-left px-5 py-3">Joined</th>
+                    <th class="text-right px-5 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for u in users %}
+                <tr class="{% if u.email in duplicate_emails %}bg-red-50{% endif %}">
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ u.username }}</td>
+                    <td class="px-5 py-3 text-slate-600">
+                        {{ u.email|default:"—" }}
+                        {% if u.email in duplicate_emails %}
+                            <span class="text-red-600 text-xs font-bold ml-1"><i class="fa-solid fa-triangle-exclamation"></i> duplicate</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-600">{{ u.profile.role|default:"—" }}</td>
+                    <td class="px-5 py-3">
+                        {% if u.is_active %}
+                            <span class="text-emerald-600 text-xs font-semibold">Active</span>
+                        {% else %}
+                            <span class="text-slate-400 text-xs font-semibold">Deactivated</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-500 text-xs">{{ u.date_joined|date:"M d, Y" }}</td>
+                    <td class="px-5 py-3 text-right">
+                        <a href="{% url 'admin_user_detail' u.id %}" class="text-red-700 hover:underline font-semibold">View</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-slate-400 p-10">No accounts found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

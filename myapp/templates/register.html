@@ -1,16 +1,17 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeLearn - Create Account</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>JCAD CodeQuest - Create Account</title>
+    <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
 </head>
 <body class="bg-slate-900 font-sans flex flex-col justify-center items-center h-screen m-0">
 
-    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full mx-4 border border-slate-700">
-        <h1 class="text-3xl font-extrabold text-indigo-400 mb-2">Join Quest! ⚔️</h1>
-        <p class="text-slate-400 text-sm mb-6">Create your profile to start earning XP and badges.</p>
+    <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full mx-4 border border-red-900/50">
+        <h1 class="text-3xl font-extrabold text-red-500 mb-2">JCAD CodeQuest 🎮</h1>
+        <p class="text-slate-400 text-sm mb-6">Create your profile to start your Java learning quest.</p>
 
         {% if messages %}
             {% for message in messages %}
@@ -24,25 +25,25 @@
             {% csrf_token %}
             <div class="mb-4 text-left">
                 <label class="text-slate-300 text-xs font-semibold block mb-2">CHOOSE USERNAME</label>
-                <input type="text" name="username" placeholder="e.g., CodeWarrior" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500" required>
+                <input type="text" name="username" placeholder="e.g., CodeWarrior" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required>
             </div>
 
             <div class="mb-4 text-left">
                 <label class="text-slate-300 text-xs font-semibold block mb-2">EMAIL ADDRESS</label>
-                <input type="email" name="email" placeholder="your@email.com" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500" required>
+                <input type="email" name="email" placeholder="your@email.com" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required>
             </div>
 
             <div class="mb-6 text-left">
                 <label class="text-slate-300 text-xs font-semibold block mb-2">CREATE PASSWORD</label>
-                <input type="password" name="password" placeholder="Min. 8 characters" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500" required minlength="8">
+                <input type="password" name="password" placeholder="Min. 8 characters" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required minlength="8">
             </div>
 
-            <button type="submit" class="w-full bg-emerald-500 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20 mb-4">
+            <button type="submit" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20 mb-4">
                 Create Account & Begin
             </button>
 
             <p class="text-slate-400 text-xs">
-                Already have an account? <a href="/login/" class="text-indigo-400 hover:underline">Log in here</a>
+                Already have an account? <a href="/login/" class="text-red-400 hover:underline font-semibold">Log in here</a>
             </p>
         </form>
     </div>

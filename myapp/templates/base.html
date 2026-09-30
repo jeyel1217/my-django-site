@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,21 +18,53 @@
                 <span class="font-bold tracking-wider text-sm">LEARNING SYSTEM</span>
             </div>
             <nav class="p-4 space-y-1">
-                <a href="{% url 'home' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'home' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm font-semibold text-red-100">
-                    <i class="fa-solid fa-house w-5 text-center"></i> Dashboard
-                </a>
-                <a href="{% url 'lessons' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'lessons' or request.resolver_match.url_name == 'lesson_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
-                    <i class="fa-solid fa-book-open w-5 text-center"></i> Lessons
-                </a>
-                <a href="{% url 'quizzes' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'quizzes' or request.resolver_match.url_name == 'quiz_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
-                    <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Quizzes
-                </a>
-                <a href="{% url 'badges' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'badges' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
-                    <i class="fa-solid fa-trophy w-5 text-center"></i> Badges
-                </a>
-                <a href="{% url 'profile' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'profile' or request.resolver_match.url_name == 'edit_profile' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
-                    <i class="fa-solid fa-user w-5 text-center"></i> My Profile
-                </a>
+
+                {% if request.user.profile.role == 'STUDENT' %}
+                    <a href="{% url 'home' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'student_dashboard' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm font-semibold text-red-100">
+                        <i class="fa-solid fa-house w-5 text-center"></i> Dashboard
+                    </a>
+                    <a href="{% url 'lessons' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'lessons' or request.resolver_match.url_name == 'lesson_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-book-open w-5 text-center"></i> Lessons
+                    </a>
+                    <a href="{% url 'quizzes' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'quizzes' or request.resolver_match.url_name == 'quiz_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Quizzes
+                    </a>
+                    <a href="{% url 'badges' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'badges' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-trophy w-5 text-center"></i> Badges
+                    </a>
+                    <a href="{% url 'profile' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'profile' or request.resolver_match.url_name == 'edit_profile' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-user w-5 text-center"></i> My Profile
+                    </a>
+
+                {% elif request.user.profile.role == 'MENTOR' %}
+                    <a href="{% url 'home' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'mentor_dashboard' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm font-semibold text-red-100">
+                        <i class="fa-solid fa-house w-5 text-center"></i> Dashboard
+                    </a>
+                    <a href="{% url 'mentor_lessons' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_lesson' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-book-open w-5 text-center"></i> Manage Lessons
+                    </a>
+                    <a href="{% url 'mentor_quizzes' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_quiz' in request.resolver_match.url_name or 'mentor_question' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Manage Quizzes
+                    </a>
+                    <a href="{% url 'profile' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'profile' or request.resolver_match.url_name == 'edit_profile' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-user w-5 text-center"></i> My Profile
+                    </a>
+
+                {% elif request.user.profile.role == 'ADMIN' %}
+                    <a href="{% url 'home' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'admin_dashboard' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm font-semibold text-red-100">
+                        <i class="fa-solid fa-house w-5 text-center"></i> Dashboard
+                    </a>
+                    <a href="{% url 'admin_user_list' %}" class="flex items-center gap-4 px-4 py-3 {% if 'admin_user' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-users w-5 text-center"></i> Manage Users
+                    </a>
+                    <a href="{% url 'admin_mentor_create' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'admin_mentor_create' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-user-plus w-5 text-center"></i> Create Mentor
+                    </a>
+                    <a href="{% url 'profile' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'profile' or request.resolver_match.url_name == 'edit_profile' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-user w-5 text-center"></i> My Profile
+                    </a>
+                {% endif %}
+
             </nav>
         </div>
         <div class="p-4 border-t border-red-700">
@@ -61,7 +94,6 @@
             {% endif %}
 
             {% block content %}
-            <!-- Other pages will inject their HTML here -->
             {% endblock %}
         </main>
     </div>

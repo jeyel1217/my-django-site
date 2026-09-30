@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Mentor Dashboard</h2>
+        <p class="text-slate-500 text-sm mt-1">Welcome, {{ request.user.username }}. Manage your lessons and quizzes here.</p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">MY LESSONS</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ my_lessons.count }}</p>
+            <a href="{% url 'mentor_lessons' %}" class="text-red-700 text-xs font-semibold hover:underline mt-2 inline-block">Manage Lessons &rarr;</a>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">MY QUIZZES</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ my_quizzes.count }}</p>
+            <a href="{% url 'mentor_quizzes' %}" class="text-red-700 text-xs font-semibold hover:underline mt-2 inline-block">Manage Quizzes &rarr;</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

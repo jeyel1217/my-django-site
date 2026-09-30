@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
+    <i class="fa-solid fa-triangle-exclamation text-3xl text-red-600 mb-3"></i>
+    <h2 class="text-lg font-bold text-slate-800 mb-2">Delete account "{{ target.username }}"?</h2>
+    <p class="text-slate-500 text-sm mb-6">This will permanently remove the account and all related data. This action cannot be undone.</p>
+
+    <form method="POST" class="flex gap-3 justify-center">
+        {% csrf_token %}
+        <button type="submit"
+            class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+            Yes, Delete
+        </button>
+        <a href="{% url 'admin_user_detail' target.id %}"
+           class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+            Cancel
+        </a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <a href="{% url 'mentor_quizzes' %}" class="text-sm text-slate-500 hover:text-red-700">
+        <i class="fa-solid fa-arrow-left"></i> Back to Quizzes
+    </a>
+
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">{{ quiz.title }}</h2>
+        <p class="text-slate-500 text-sm mt-1">Manage questions for this quiz. Each question needs exactly 4 choices.</p>
+    </div>
+
+    <!-- Existing questions -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+        {% for question in questions %}
+        <div class="p-5">
+            <div class="flex items-start justify-between">
+                <p class="font-semibold text-slate-800">{{ forloop.counter }}. {{ question.text }}</p>
+                <form method="POST" action="{% url 'mentor_question_delete' quiz.pk question.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="text-xs text-slate-400 hover:text-red-600 font-semibold">Delete</button>
+                </form>
+            </div>
+            <ul class="mt-2 space-y-1 text-sm">
+                {% for choice in question.choices.all %}
+                <li class="{% if choice.is_correct %}text-emerald-600 font-semibold{% else %}text-slate-500{% endif %}">
+                    {% if choice.is_correct %}<i class="fa-solid fa-check"></i>{% endif %} {{ choice.text }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% empty %}
+        <div class="p-10 text-center text-slate-400">No questions yet — add your first one below.</div>
+        {% endfor %}
+    </div>
+
+    <!-- Add question form -->
+    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="text-lg font-bold text-slate-800 mb-4">Add a Question</h3>
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">QUESTION</label>
+                {{ form.text }}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 1</label>
+                    {{ form.choice_1 }}
+                </div>
+                <div>
+                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 2</label>
+                    {{ form.choice_2 }}
+                </div>
+                <div>
+                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 3</label>
+                    {{ form.choice_3 }}
+                </div>
+                <div>
+                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 4</label>
+                    {{ form.choice_4 }}
+                </div>
+            </div>
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">CORRECT ANSWER</label>
+                <div class="flex gap-4">
+                    {% for radio in form.correct_choice %}
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            {{ radio.tag }} {{ radio.choice_label }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit"
+                class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                Add Question
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
