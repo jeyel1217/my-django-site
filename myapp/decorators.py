@@ -42,3 +42,16 @@ def role_required(*allowed_roles):
             return view_func(request, *args, **kwargs)
         return _wrapped
     return decorator
+
+
+def require_verified(view_func):
+    """Blocks access until the user's Profile.is_verified is True.
+    Stack this alongside @login_required on any protected view."""
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        profile = get_object_or_404(Profile, user=request.user)
+        if not profile.is_verified:
+            from django.shortcuts import redirect
+            return redirect('verify_email')
+        return view_func(request, *args, **kwargs)
+    return _wrapped

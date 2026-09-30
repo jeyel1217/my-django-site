@@ -113,3 +113,77 @@ class MentorCreateForm(forms.Form):
         widget=forms.PasswordInput(attrs={'class': TEXT_INPUT_CLASSES}),
         help_text="Minimum 8 characters. Share this with the Mentor securely.",
     )
+
+
+# ---------------------------------------------------------
+# EMAIL VERIFICATION + PASSWORD RESET
+# ---------------------------------------------------------
+class OTPForm(forms.Form):
+    code = forms.CharField(
+        max_length=6,
+        min_length=6,
+        widget=forms.TextInput(attrs={
+            'class': (
+                "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 "
+                "text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-red-500"
+            ),
+            'placeholder': '000000',
+            'autocomplete': 'one-time-code',
+            'inputmode': 'numeric',
+        }),
+    )
+
+
+class ForgotPasswordRequestForm(forms.Form):
+    username_or_email = forms.CharField(
+        label="Username or Email",
+        widget=forms.TextInput(attrs={
+            'class': (
+                "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 "
+                "text-white focus:outline-none focus:border-red-500"
+            ),
+            'placeholder': 'Enter username or email',
+        }),
+    )
+
+
+class ResetPasswordConfirmForm(forms.Form):
+    code = forms.CharField(
+        max_length=6,
+        min_length=6,
+        widget=forms.TextInput(attrs={
+            'class': (
+                "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 "
+                "text-white text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-red-500"
+            ),
+            'placeholder': '000000',
+            'inputmode': 'numeric',
+        }),
+    )
+    new_password = forms.CharField(
+        min_length=8,
+        widget=forms.PasswordInput(attrs={
+            'class': (
+                "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 "
+                "text-white focus:outline-none focus:border-red-500"
+            ),
+            'placeholder': 'Min. 8 characters',
+        }),
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': (
+                "w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 "
+                "text-white focus:outline-none focus:border-red-500"
+            ),
+            'placeholder': 'Re-enter new password',
+        }),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get('new_password')
+        p2 = cleaned.get('confirm_password')
+        if p1 and p2 and p1 != p2:
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned

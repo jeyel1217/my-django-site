@@ -1,9 +1,13 @@
-
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load variables from .env (EMAIL_HOST_USER, EMAIL_HOST_PASSWORD).
+# .env is gitignored — never committed to the public repo.
+load_dotenv(BASE_DIR / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-lzkdlmjjk-!z&6(8g@n7@ix0j8!2bmsm@ggs38%q_kce6-sc6@'
@@ -86,3 +90,13 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Authentication Redirects
 LOGIN_URL = 'login'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Email (Gmail SMTP) — used for OTP verification and password reset.
+# Reads from .env, never hardcoded, since this repo is public on GitHub.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

@@ -26,6 +26,11 @@ class Profile(models.Model):
     streak_days = models.PositiveIntegerField(default=0)
     last_active_date = models.DateField(null=True, blank=True)
 
+    # Defaults to True so EXISTING accounts (created before this feature)
+    # aren't locked out. New self-registrations explicitly set this False
+    # in register_view, then must verify via OTP.
+    is_verified = models.BooleanField(default=True)
+
     def __str__(self):
         return f"{self.user.username} ({self.role})"
 
@@ -203,3 +208,41 @@ class UserBadge(models.Model):
 
     def __str__(self):
         return f"{self.user.username} earned {self.badge.name}"
+
+
+# ---------------------------------------------------------
+# OTP VERIFICATION (email verification + password reset)
+# ---------------------------------------------------------
+class OTPCode(models.Model):
+    """A single-use, expiring one-time code. The code itself is stored
+    hashed (SHA-256), never in plain text, per the security spec (§13)."""
+
+    PURPOSE_VERIFY_EMAIL = 'VERIFY_EMAIL'
+    PURPOSE_RESET_PASSWORD = 'RESET_PASSWORD'
+    PURPOSE_CHOICES = [
+        (PURPOSE_VERIFY_EMAIL, 'Verify Email'),
+        (PURPOSE_RESET_PASSWORD, 'Reset Password'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_codes')
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
+    code_hash = models.CharField(max_length=64)  # sha256 hex digest
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    attempts = models.PositiveIntegerField(default=0)  # wrong-code attempts
+
+    MAX_ATTEMPTS = 5
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.purpose} ({'used' if self.is_used else 'active'})"
+
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+
+    def is_valid(self):
+        return (not self.is_used) and (not self.is_expired()) and (self.attempts < self.MAX_ATTEMPTS)

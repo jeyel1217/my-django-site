@@ -12,8 +12,13 @@ from .models import (
     Quiz, Question, Choice, QuizAttempt,
     Badge, UserBadge,
 )
-from .forms import UserUpdateForm, ProfileUpdateForm, LessonForm, QuizForm, QuestionForm, MentorCreateForm
-from .decorators import role_required
+from .forms import (
+    UserUpdateForm, ProfileUpdateForm, LessonForm, QuizForm, QuestionForm,
+    MentorCreateForm, OTPForm, ForgotPasswordRequestForm, ResetPasswordConfirmForm,
+)
+from .decorators import role_required, require_verified
+from .utils import generate_and_send_otp, verify_otp, can_resend, seconds_until_resend
+from .models import OTPCode
 
 
 # ---------------------------------------------------------
@@ -55,19 +60,30 @@ def register_view(request):
             messages.error(request, 'Username and password are required.')
             return render(request, 'register.html')
 
+        if not email:
+            messages.error(request, 'Email is required for account verification.')
+            return render(request, 'register.html')
+
         if User.objects.filter(username=username).exists():
             messages.error(request, 'That username is already taken.')
             return render(request, 'register.html')
 
-        if email and User.objects.filter(email__iexact=email).exists():
+        if User.objects.filter(email__iexact=email).exists():
             messages.error(request, 'This email address is already registered.')
             return render(request, 'register.html')
 
         user = User.objects.create_user(username=username, email=email, password=password)
-        # Profile is auto-created by the post_save signal in signals.py,
-        # with role defaulting to STUDENT — that's correct for self-registration.
-        login(request, user)
-        return redirect('dashboard_router')
+        # Profile is auto-created by the post_save signal in signals.py.
+        # Force it unverified — this account cannot use the app until the
+        # OTP emailed below is confirmed on the Verify Email page.
+        user.profile.is_verified = False
+        user.profile.save(update_fields=['is_verified'])
+
+        generate_and_send_otp(user, OTPCode.PURPOSE_VERIFY_EMAIL)
+
+        login(request, user)  # session started, but require_verified blocks real access
+        messages.success(request, f'A verification code was sent to {email}.')
+        return redirect('verify_email')
 
     return render(request, 'register.html')
 
@@ -77,8 +93,13 @@ def register_view(request):
 # ---------------------------------------------------------
 @login_required
 def dashboard_router(request):
-    """Single entry point after login. Sends each role to its own dashboard."""
+    """Single entry point after login. Sends each role to its own dashboard.
+    Unverified accounts get sent to the verification page instead."""
     profile, _ = Profile.objects.get_or_create(user=request.user)
+
+    if not profile.is_verified:
+        return redirect('verify_email')
+
     profile.update_streak()
 
     if profile.role == Profile.ROLE_ADMIN:
@@ -554,3 +575,122 @@ def admin_mentor_create(request):
         form = MentorCreateForm()
 
     return render(request, 'admin_mentor_create.html', {'form': form})
+
+
+# ===========================================================
+# EMAIL VERIFICATION
+# ===========================================================
+@login_required
+def verify_email_view(request):
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+
+    if profile.is_verified:
+        return redirect('dashboard_router')
+
+    if request.method == 'POST':
+        form = OTPForm(request.POST)
+        if form.is_valid():
+            success, error = verify_otp(request.user, OTPCode.PURPOSE_VERIFY_EMAIL, form.cleaned_data['code'])
+            if success:
+                profile.is_verified = True
+                profile.save(update_fields=['is_verified'])
+                messages.success(request, 'Your account is verified!')
+                return redirect('dashboard_router')
+            else:
+                messages.error(request, error)
+    else:
+        form = OTPForm()
+
+    return render(request, 'verify_email.html', {
+        'form': form,
+        'email': request.user.email,
+        'resend_wait': seconds_until_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL),
+    })
+
+
+@login_required
+def resend_verification_otp(request):
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    if profile.is_verified:
+        return redirect('dashboard_router')
+
+    if request.method == 'POST':
+        if can_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL):
+            generate_and_send_otp(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
+            messages.success(request, 'A new code was sent to your email.')
+        else:
+            wait = seconds_until_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
+            messages.error(request, f'Please wait {wait} seconds before requesting another code.')
+
+    return redirect('verify_email')
+
+
+# ===========================================================
+# FORGOT PASSWORD (OTP-based)
+# ===========================================================
+def forgot_password_request_view(request):
+    """Step 1: user enters username or email. We deliberately show the
+    SAME message whether or not the account exists, per spec §13 —
+    this avoids revealing which usernames/emails are registered."""
+    if request.method == 'POST':
+        form = ForgotPasswordRequestForm(request.POST)
+        if form.is_valid():
+            identifier = form.cleaned_data['username_or_email']
+            user = User.objects.filter(username=identifier).first() \
+                or User.objects.filter(email__iexact=identifier).first()
+
+            if user and user.email:
+                generate_and_send_otp(user, OTPCode.PURPOSE_RESET_PASSWORD)
+                request.session['reset_user_id'] = user.id
+
+            messages.success(
+                request,
+                'If an account matches that username or email, a reset code has been sent.'
+            )
+            return redirect('reset_password_confirm')
+    else:
+        form = ForgotPasswordRequestForm()
+
+    return render(request, 'forgot_password.html', {'form': form})
+
+
+def reset_password_confirm_view(request):
+    """Step 2: user enters the OTP code + new password together."""
+    user_id = request.session.get('reset_user_id')
+
+    if request.method == 'POST':
+        form = ResetPasswordConfirmForm(request.POST)
+        if form.is_valid():
+            if not user_id:
+                messages.error(request, 'Session expired. Please start again.')
+                return redirect('forgot_password_request')
+
+            user = get_object_or_404(User, pk=user_id)
+            success, error = verify_otp(user, OTPCode.PURPOSE_RESET_PASSWORD, form.cleaned_data['code'])
+
+            if success:
+                user.set_password(form.cleaned_data['new_password'])
+                user.save()
+                del request.session['reset_user_id']
+                messages.success(request, 'Password reset! You can now log in.')
+                return redirect('login')
+            else:
+                messages.error(request, error)
+    else:
+        form = ResetPasswordConfirmForm()
+
+    return render(request, 'reset_password.html', {'form': form})
+
+
+def resend_reset_otp(request):
+    user_id = request.session.get('reset_user_id')
+    if request.method == 'POST' and user_id:
+        user = get_object_or_404(User, pk=user_id)
+        if can_resend(user, OTPCode.PURPOSE_RESET_PASSWORD):
+            generate_and_send_otp(user, OTPCode.PURPOSE_RESET_PASSWORD)
+            messages.success(request, 'A new code was sent to your email.')
+        else:
+            wait = seconds_until_resend(user, OTPCode.PURPOSE_RESET_PASSWORD)
+            messages.error(request, f'Please wait {wait} seconds before requesting another code.')
+
+    return redirect('reset_password_confirm')

@@ -28,10 +28,14 @@
                 <input type="text" name="username" placeholder="Enter username" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required>
             </div>
 
-            <div class="mb-6 text-left">
+            <div class="mb-2 text-left">
                 <label class="text-slate-300 text-xs font-semibold block mb-2">PASSWORD</label>
                 <input type="password" name="password" placeholder="Enter password" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required>
             </div>
+
+            <p class="text-right mb-4">
+                <a href="{% url 'forgot_password_request' %}" class="text-red-400 hover:underline text-xs">Forgot password?</a>
+            </p>
 
             <button type="submit" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20">
                 Login to Dashboard

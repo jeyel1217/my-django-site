@@ -58,6 +58,15 @@ urlpatterns = [
     path('admin-panel/users/<int:user_id>/toggle-active/', views.admin_user_toggle_active, name='admin_user_toggle_active'),
     path('admin-panel/users/<int:user_id>/delete/', views.admin_user_delete, name='admin_user_delete'),
     path('admin-panel/mentors/create/', views.admin_mentor_create, name='admin_mentor_create'),
+
+    # ---------------------------------------------------------
+    # EMAIL VERIFICATION + PASSWORD RESET
+    # ---------------------------------------------------------
+    path('verify-email/', views.verify_email_view, name='verify_email'),
+    path('verify-email/resend/', views.resend_verification_otp, name='resend_verification_otp'),
+    path('forgot-password/', views.forgot_password_request_view, name='forgot_password_request'),
+    path('reset-password/', views.reset_password_confirm_view, name='reset_password_confirm'),
+    path('reset-password/resend/', views.resend_reset_otp, name='resend_reset_otp'),
 ]
 
 if settings.DEBUG:
