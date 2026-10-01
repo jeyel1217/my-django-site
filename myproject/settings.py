@@ -15,7 +15,7 @@ SECRET_KEY = 'django-insecure-lzkdlmjjk-!z&6(8g@n7@ix0j8!2bmsm@ggs38%q_kce6-sc6@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['johnlloyd1217.pythonanywhere.com']
 
 # Application definition
 INSTALLED_APPS = [
@@ -81,6 +81,7 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
+STATIC_ROOT = '/home/johnlloyd1217/my-django-site/static'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Media Handling

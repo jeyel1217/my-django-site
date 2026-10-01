@@ -79,10 +79,17 @@ def register_view(request):
         user.profile.is_verified = False
         user.profile.save(update_fields=['is_verified'])
 
-        generate_and_send_otp(user, OTPCode.PURPOSE_VERIFY_EMAIL)
+        sent = generate_and_send_otp(user, OTPCode.PURPOSE_VERIFY_EMAIL)
 
         login(request, user)  # session started, but require_verified blocks real access
-        messages.success(request, f'A verification code was sent to {email}.')
+        if sent:
+            messages.success(request, f'A verification code was sent to {email}.')
+        else:
+            messages.warning(
+                request,
+                'Account created, but we couldn\'t send the verification email right now. '
+                'Use the "Resend code" button below to try again.'
+            )
         return redirect('verify_email')
 
     return render(request, 'register.html')
@@ -616,8 +623,11 @@ def resend_verification_otp(request):
 
     if request.method == 'POST':
         if can_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL):
-            generate_and_send_otp(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
-            messages.success(request, 'A new code was sent to your email.')
+            sent = generate_and_send_otp(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
+            if sent:
+                messages.success(request, 'A new code was sent to your email.')
+            else:
+                messages.error(request, 'Could not send the email right now. Please try again in a moment.')
         else:
             wait = seconds_until_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
             messages.error(request, f'Please wait {wait} seconds before requesting another code.')
@@ -687,8 +697,11 @@ def resend_reset_otp(request):
     if request.method == 'POST' and user_id:
         user = get_object_or_404(User, pk=user_id)
         if can_resend(user, OTPCode.PURPOSE_RESET_PASSWORD):
-            generate_and_send_otp(user, OTPCode.PURPOSE_RESET_PASSWORD)
-            messages.success(request, 'A new code was sent to your email.')
+            sent = generate_and_send_otp(user, OTPCode.PURPOSE_RESET_PASSWORD)
+            if sent:
+                messages.success(request, 'A new code was sent to your email.')
+            else:
+                messages.error(request, 'Could not send the email right now. Please try again in a moment.')
         else:
             wait = seconds_until_resend(user, OTPCode.PURPOSE_RESET_PASSWORD)
             messages.error(request, f'Please wait {wait} seconds before requesting another code.')

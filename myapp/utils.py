@@ -54,7 +54,9 @@ def seconds_until_resend(user, purpose):
 
 def generate_and_send_otp(user, purpose):
     """Creates a new OTPCode, invalidates old unused ones for the same
-    purpose, and emails the code to the user. Returns True if sent."""
+    purpose, and emails the code to the user. Returns True if the email
+    was actually sent, False if sending failed (e.g. SMTP issue) — the
+    code is still created either way so a retry/resend can reuse it."""
     if not user.email:
         return False
 
@@ -88,13 +90,20 @@ def generate_and_send_otp(user, purpose):
             f"your password will not be changed."
         )
 
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:
+        # SMTP hiccup, Gmail hold, network issue, etc. Don't crash the
+        # page — the code still exists in the DB, so a resend will work
+        # once the underlying issue clears.
+        return False
+
     return True
 
 
