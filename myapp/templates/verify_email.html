@@ -10,10 +10,10 @@
 <body class="bg-slate-900 font-sans flex flex-col justify-center items-center h-screen m-0">
 
     <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full mx-4 border border-red-900/50">
-        <h1 class="text-3xl font-extrabold text-red-500 mb-2">Verify Your Email 📧</h1>
+        <h1 class="text-3xl font-extrabold text-red-500 mb-2">Check Your Email 📧</h1>
         <p class="text-slate-400 text-sm mb-6">
-            We sent a 6-digit code to <span class="text-red-400">{{ email }}</span>.
-            Enter it below to activate your account.
+            We sent a confirmation link to <span class="text-red-400">{{ email }}</span>.
+            Click the link in that email to activate your account.
         </p>
 
         {% if messages %}
@@ -24,25 +24,17 @@
             {% endfor %}
         {% endif %}
 
-        <form method="POST">
-            {% csrf_token %}
-            <div class="mb-6">
-                {{ form.code }}
-                {% if form.code.errors %}<p class="text-xs text-red-400 mt-2">{{ form.code.errors|join:", " }}</p>{% endif %}
-            </div>
+        <p class="text-slate-500 text-xs mb-4">
+            Didn't get it? Check your spam folder, or request a new link below.
+        </p>
 
-            <button type="submit" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20">
-                Verify Account
-            </button>
-        </form>
-
-        <form method="POST" action="{% url 'resend_verification_otp' %}" class="mt-4">
+        <form method="POST" action="{% url 'resend_verification_otp' %}">
             {% csrf_token %}
             {% if resend_wait > 0 %}
                 <p class="text-slate-500 text-xs">Resend available in {{ resend_wait }}s</p>
             {% else %}
-                <button type="submit" class="text-red-400 hover:underline text-xs font-semibold">
-                    Didn't get a code? Resend it
+                <button type="submit" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20">
+                    Resend Confirmation Link
                 </button>
             {% endif %}
         </form>

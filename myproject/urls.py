@@ -64,6 +64,7 @@ urlpatterns = [
     # ---------------------------------------------------------
     path('verify-email/', views.verify_email_view, name='verify_email'),
     path('verify-email/resend/', views.resend_verification_otp, name='resend_verification_otp'),
+    path('verify-email/confirm/<int:user_id>/<str:token>/', views.verify_email_confirm_view, name='verify_email_confirm'),
     path('forgot-password/', views.forgot_password_request_view, name='forgot_password_request'),
     path('reset-password/', views.reset_password_confirm_view, name='reset_password_confirm'),
     path('reset-password/resend/', views.resend_reset_otp, name='resend_reset_otp'),

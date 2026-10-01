@@ -17,7 +17,10 @@ from .forms import (
     MentorCreateForm, OTPForm, ForgotPasswordRequestForm, ResetPasswordConfirmForm,
 )
 from .decorators import role_required, require_verified
-from .utils import generate_and_send_otp, verify_otp, can_resend, seconds_until_resend
+from .utils import (
+    generate_and_send_otp, verify_otp, can_resend, seconds_until_resend,
+    generate_and_send_verification_link, verify_link_token,
+)
 from .models import OTPCode
 
 
@@ -75,20 +78,20 @@ def register_view(request):
         user = User.objects.create_user(username=username, email=email, password=password)
         # Profile is auto-created by the post_save signal in signals.py.
         # Force it unverified — this account cannot use the app until the
-        # OTP emailed below is confirmed on the Verify Email page.
+        # confirmation link emailed below is clicked.
         user.profile.is_verified = False
         user.profile.save(update_fields=['is_verified'])
 
-        sent = generate_and_send_otp(user, OTPCode.PURPOSE_VERIFY_EMAIL)
+        sent = generate_and_send_verification_link(request, user)
 
         login(request, user)  # session started, but require_verified blocks real access
         if sent:
-            messages.success(request, f'A verification code was sent to {email}.')
+            messages.success(request, f'A confirmation link was sent to {email}. Click it to activate your account.')
         else:
             messages.warning(
                 request,
-                'Account created, but we couldn\'t send the verification email right now. '
-                'Use the "Resend code" button below to try again.'
+                'Account created, but we couldn\'t send the confirmation email right now. '
+                'Use the "Resend link" button below to try again.'
             )
         return redirect('verify_email')
 
@@ -589,27 +592,14 @@ def admin_mentor_create(request):
 # ===========================================================
 @login_required
 def verify_email_view(request):
+    """Waiting page shown after registration — tells the user to check
+    their email and click the confirmation link. No code to type here."""
     profile, _ = Profile.objects.get_or_create(user=request.user)
 
     if profile.is_verified:
         return redirect('dashboard_router')
 
-    if request.method == 'POST':
-        form = OTPForm(request.POST)
-        if form.is_valid():
-            success, error = verify_otp(request.user, OTPCode.PURPOSE_VERIFY_EMAIL, form.cleaned_data['code'])
-            if success:
-                profile.is_verified = True
-                profile.save(update_fields=['is_verified'])
-                messages.success(request, 'Your account is verified!')
-                return redirect('dashboard_router')
-            else:
-                messages.error(request, error)
-    else:
-        form = OTPForm()
-
     return render(request, 'verify_email.html', {
-        'form': form,
         'email': request.user.email,
         'resend_wait': seconds_until_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL),
     })
@@ -623,16 +613,43 @@ def resend_verification_otp(request):
 
     if request.method == 'POST':
         if can_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL):
-            sent = generate_and_send_otp(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
+            sent = generate_and_send_verification_link(request, request.user)
             if sent:
-                messages.success(request, 'A new code was sent to your email.')
+                messages.success(request, 'A new confirmation link was sent to your email.')
             else:
                 messages.error(request, 'Could not send the email right now. Please try again in a moment.')
         else:
             wait = seconds_until_resend(request.user, OTPCode.PURPOSE_VERIFY_EMAIL)
-            messages.error(request, f'Please wait {wait} seconds before requesting another code.')
+            messages.error(request, f'Please wait {wait} seconds before requesting another link.')
 
     return redirect('verify_email')
+
+
+def verify_email_confirm_view(request, user_id, token):
+    """The link the user clicks from their email. Works even if they're
+    not logged in on this browser/device — identifies the account by
+    user_id in the URL, proves ownership via the token."""
+    user = get_object_or_404(User, pk=user_id)
+    profile, _ = Profile.objects.get_or_create(user=user)
+
+    if profile.is_verified:
+        messages.info(request, 'This account is already verified. You can log in.')
+        return redirect('login')
+
+    success, error = verify_link_token(user, token)
+
+    if success:
+        profile.is_verified = True
+        profile.save(update_fields=['is_verified'])
+        if request.user.is_authenticated and request.user.id == user.id:
+            messages.success(request, 'Your account is verified!')
+            return redirect('dashboard_router')
+        else:
+            messages.success(request, 'Your account is verified! You can now log in.')
+            return redirect('login')
+    else:
+        messages.error(request, error)
+        return redirect('login')
 
 
 # ===========================================================
