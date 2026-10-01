@@ -67,13 +67,27 @@ def register_view(request):
             messages.error(request, 'Email is required for account verification.')
             return render(request, 'register.html')
 
-        if User.objects.filter(username=username).exists():
-            messages.error(request, 'That username is already taken.')
-            return render(request, 'register.html')
+        # If the username/email belongs to an account that was NEVER
+        # verified, treat it as abandoned and free it up — otherwise one
+        # incomplete registration would permanently block that username
+        # and email for everyone, including the same person retrying.
+        existing_username = User.objects.filter(username=username).first()
+        if existing_username:
+            profile = getattr(existing_username, 'profile', None)
+            if profile and profile.is_verified:
+                messages.error(request, 'That username is already taken.')
+                return render(request, 'register.html')
+            else:
+                existing_username.delete()  # abandoned, unverified — reclaim it
 
-        if User.objects.filter(email__iexact=email).exists():
-            messages.error(request, 'This email address is already registered.')
-            return render(request, 'register.html')
+        existing_email = User.objects.filter(email__iexact=email).first()
+        if existing_email:
+            profile = getattr(existing_email, 'profile', None)
+            if profile and profile.is_verified:
+                messages.error(request, 'This email address is already registered.')
+                return render(request, 'register.html')
+            else:
+                existing_email.delete()  # abandoned, unverified — reclaim it
 
         user = User.objects.create_user(username=username, email=email, password=password)
         # Profile is auto-created by the post_save signal in signals.py.
