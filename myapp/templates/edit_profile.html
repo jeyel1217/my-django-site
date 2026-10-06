@@ -4,7 +4,7 @@
 <div class="max-w-lg mx-auto bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
     <h2 class="text-xl font-extrabold text-slate-800 mb-6">Edit Profile</h2>
 
-    <form method="POST" enctype="multipart/form-data" class="space-y-5">
+    <form method="POST" enctype="multipart/form-data" class="space-y-5" novalidate>
         {% csrf_token %}
 
         <!-- Avatar preview + upload -->
@@ -19,31 +19,32 @@
             {% endif %}
         </div>
 
-        <!-- Username / name / email from UserUpdateForm -->
+        <!-- Name (shown in the welcome message instead of the username) -->
         <div>
-            <label class="text-slate-500 text-xs font-semibold block mb-2">USERNAME</label>
-            {{ user_form.username }}
-            {% if user_form.username.errors %}
-                <p class="text-xs text-red-600 mt-1">{{ user_form.username.errors|join:", " }}</p>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">NAME</label>
+            {{ profile_form.name }}
+            <p class="text-xs text-slate-400 mt-1">Your preferred display name. Shown in the welcome message instead of your username.</p>
+            {% if profile_form.name.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ profile_form.name.errors|join:" " }}</p>
             {% endif %}
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-slate-500 text-xs font-semibold block mb-2">FIRST NAME</label>
-                {{ user_form.first_name }}
-            </div>
-            <div>
-                <label class="text-slate-500 text-xs font-semibold block mb-2">LAST NAME</label>
-                {{ user_form.last_name }}
-            </div>
+        <!-- Username / email from UserUpdateForm -->
+        <div>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">USERNAME</label>
+            {{ user_form.username }}
+            <p class="text-xs text-slate-400 mt-1">8&ndash;20 characters: letters, numbers, and underscores.</p>
+            {% if user_form.username.errors %}
+                <p class="text-xs text-red-600 mt-1">{{ user_form.username.errors|join:" " }}</p>
+            {% endif %}
         </div>
 
         <div>
-            <label class="text-slate-500 text-xs font-semibold block mb-2">EMAIL</label>
+            <label class="text-slate-500 text-xs font-semibold block mb-2">GMAIL ADDRESS</label>
             {{ user_form.email }}
+            <p class="text-xs text-slate-400 mt-1">If you change your Gmail address, we will email a confirmation link to the new one.</p>
             {% if user_form.email.errors %}
-                <p class="text-xs text-red-600 mt-1">{{ user_form.email.errors|join:", " }}</p>
+                <p class="text-xs text-red-600 mt-1">{{ user_form.email.errors|join:" " }}</p>
             {% endif %}
         </div>
 

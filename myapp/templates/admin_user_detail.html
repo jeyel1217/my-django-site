@@ -19,7 +19,7 @@
         <div class="grid grid-cols-2 gap-4 text-sm mb-6">
             <div>
                 <p class="text-[10px] font-bold text-slate-400 tracking-wider">EMAIL</p>
-                <p class="text-slate-800">{{ target.email|default:"—" }}</p>
+                <p class="text-slate-800">{{ target.email|default:"— (none)" }}</p>
             </div>
             <div>
                 <p class="text-[10px] font-bold text-slate-400 tracking-wider">ROLE</p>
@@ -35,7 +35,17 @@
             </div>
         </div>
 
-        <div class="flex gap-3 pt-4 border-t border-slate-100">
+        {% if target.profile.is_locked %}
+        <div class="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex flex-wrap items-center justify-between gap-3">
+            <span><i class="fa-solid fa-lock"></i> <strong>Locked</strong> after 3 failed login attempts.</span>
+            <form method="POST" action="{% url 'admin_user_unlock' target.id %}">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 rounded-lg bg-red-700 text-white text-xs font-semibold hover:bg-red-800">Unlock Account</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div class="flex flex-wrap gap-3 pt-4 border-t border-slate-100">
             <form method="POST" action="{% url 'admin_user_toggle_active' target.id %}">
                 {% csrf_token %}
                 {% if target.is_active %}
@@ -48,6 +58,13 @@
                     </button>
                 {% endif %}
             </form>
+
+            {% if not target.is_superuser and target != request.user %}
+            <a href="{% url 'admin_user_reset_password' target.id %}"
+               class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+                Reset Password
+            </a>
+            {% endif %}
 
             <a href="{% url 'admin_user_delete' target.id %}"
                class="px-5 py-2.5 rounded-lg border border-red-300 text-red-600 text-sm font-semibold hover:bg-red-50">

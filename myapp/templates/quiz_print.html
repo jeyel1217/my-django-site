@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ quiz.title }}{% if show_key %} - Answer Key{% endif %}</title>
+    {# Everything below is inline on purpose: no Tailwind, no CDN, no fonts. The page must print cleanly with nothing but this file. #}
+    <style>
+        @page { size: A4; margin: 18mm 16mm; }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Times New Roman", Times, Georgia, serif;
+            font-size: 12pt;
+            line-height: 1.4;
+            color: #000;
+            background: #e5e7eb;
+        }
+
+        /* ---------- on-screen preview only ---------- */
+        .toolbar {
+            position: sticky; top: 0; z-index: 10;
+            background: #1f2937; color: #fff;
+            padding: 10px 16px;
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+            font-family: Arial, Helvetica, sans-serif; font-size: 14px;
+        }
+        .toolbar a, .toolbar button {
+            font: inherit; color: #fff; text-decoration: none; cursor: pointer;
+            border: 1px solid #6b7280; background: transparent; border-radius: 6px; padding: 7px 14px;
+        }
+        .toolbar .primary { background: #b91c1c; border-color: #b91c1c; font-weight: 700; }
+        .toolbar .group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .sheet {
+            background: #fff;
+            width: 210mm; max-width: 100%;
+            margin: 16px auto;
+            padding: 18mm 16mm;
+            box-shadow: 0 2px 10px rgba(0,0,0,.25);
+        }
+        .warn { font-family: Arial, sans-serif; font-size: 13px; background: #fef3c7; color: #92400e; padding: 8px 12px; margin-bottom: 14px; border: 1px solid #fcd34d; }
+
+        /* ---------- the paper ---------- */
+        .school { text-align: center; font-weight: 700; font-size: 14pt; letter-spacing: .5px; text-transform: uppercase; }
+        .title  { text-align: center; font-weight: 700; font-size: 16pt; text-transform: uppercase; margin: 6px 0 2px; }
+        .subject { text-align: center; font-size: 11pt; margin-bottom: 4px; }
+        .keybanner { text-align: center; font-weight: 700; border: 2px solid #000; padding: 4px; margin: 8px 0; letter-spacing: 2px; }
+        hr.rule { border: 0; border-top: 2px solid #000; margin: 10px 0 12px; }
+
+        .info { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-bottom: 8px; }
+        .info .line { flex: 1 1 45%; white-space: nowrap; }
+        .info .wide { flex: 1 1 100%; }
+        .blank { display: inline-block; border-bottom: 1px solid #000; min-width: 60mm; height: 1.1em; vertical-align: bottom; }
+        .blank.short { min-width: 28mm; }
+
+        .instructions { margin: 8px 0 16px; }
+        .instructions strong { text-transform: uppercase; font-size: 10.5pt; }
+
+        .question { margin: 0 0 14px; break-inside: avoid; page-break-inside: avoid; }
+        .question .q { font-weight: 700; margin-bottom: 4px; }
+        .choice { margin: 2px 0 2px 22px; }
+        .choice.correct { font-weight: 700; text-decoration: underline; }
+        .empty { font-style: italic; color: #555; }
+
+        /* ---------- printing ---------- */
+        @media print {
+            body { background: #fff; }
+            .no-print { display: none !important; }   /* toolbar + on-screen warnings */
+            .sheet { box-shadow: none; margin: 0; padding: 0; width: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toolbar no-print">
+        <div class="group">
+            <a href="javascript:history.back()">&larr; Back</a>
+        </div>
+        <div class="group">
+            {% if show_key %}
+                <a href="{% url 'mentor_quiz_print' quiz.pk %}">Show student copy</a>
+            {% else %}
+                <a href="?key=1">Show answer key</a>
+            {% endif %}
+            <button type="button" class="primary" onclick="window.print()">Print {% if show_key %}Answer Key{% else %}Quiz{% endif %}</button>
+        </div>
+    </div>
+
+    <div class="sheet">
+        {% if not questions %}
+            <div class="warn no-print">This quiz has no questions yet. Add some before printing.</div>
+        {% endif %}
+
+        <div class="school">{{ school_name }}</div>
+        <div class="title">{{ quiz.title }}</div>
+        {% if subject %}<div class="subject">Subject / Lesson: {{ subject }}</div>{% endif %}
+
+        {% if show_key %}
+            <div class="keybanner">ANSWER KEY &mdash; FOR THE MENTOR ONLY</div>
+        {% endif %}
+
+        <hr class="rule">
+
+        {% if not show_key %}
+            <div class="info">
+                <div class="wide">Name: <span class="blank" style="min-width:110mm"></span></div>
+                <div class="line">Section: <span class="blank"></span></div>
+                <div class="line">Date: <span class="blank"></span></div>
+                <div class="wide">Score: <span class="blank short"></span> / {{ total }}</div>
+            </div>
+        {% endif %}
+
+        <div class="instructions">
+            <strong>Instructions:</strong>
+            {{ instructions|linebreaksbr }}
+        </div>
+
+        {% for q in questions %}
+            <div class="question">
+                <div class="q">{{ q.number }}. {{ q.text }}</div>
+                {% for c in q.choices %}
+                    <div class="choice{% if show_key and c.correct %} correct{% endif %}">{{ c.letter }}. {{ c.text }}{% if show_key and c.correct %} &#10003;{% endif %}</div>
+                {% endfor %}
+            </div>
+        {% empty %}
+            <p class="empty">(No questions yet)</p>
+        {% endfor %}
+    </div>
+
+</body>
+</html>

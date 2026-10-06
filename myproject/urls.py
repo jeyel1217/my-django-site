@@ -50,6 +50,11 @@ urlpatterns = [
     path('mentor/quizzes/<int:pk>/questions/', views.mentor_quiz_questions, name='mentor_quiz_questions'),
     path('mentor/quizzes/<int:pk>/questions/<int:question_id>/delete/', views.mentor_question_delete, name='mentor_question_delete'),
 
+    # Student progress + printing (Mentor)
+    path('mentor/progress/', views.mentor_progress_overview, name='mentor_progress_overview'),
+    path('mentor/quizzes/<int:pk>/progress/', views.mentor_exam_progress, name='mentor_exam_progress'),
+    path('mentor/quizzes/<int:pk>/print/', views.mentor_quiz_print, name='mentor_quiz_print'),
+
     # ---------------------------------------------------------
     # ADMIN — account management
     # ---------------------------------------------------------
@@ -57,7 +62,11 @@ urlpatterns = [
     path('admin-panel/users/<int:user_id>/', views.admin_user_detail, name='admin_user_detail'),
     path('admin-panel/users/<int:user_id>/toggle-active/', views.admin_user_toggle_active, name='admin_user_toggle_active'),
     path('admin-panel/users/<int:user_id>/delete/', views.admin_user_delete, name='admin_user_delete'),
+    path('admin-panel/users/<int:user_id>/unlock/', views.admin_user_unlock, name='admin_user_unlock'),
+    path('admin-panel/users/<int:user_id>/reset-password/', views.admin_user_reset_password, name='admin_user_reset_password'),
     path('admin-panel/mentors/create/', views.admin_mentor_create, name='admin_mentor_create'),
+
+    # Exam monitoring (Admin)
 
     # ---------------------------------------------------------
     # EMAIL VERIFICATION + PASSWORD RESET

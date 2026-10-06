@@ -50,6 +50,11 @@ urlpatterns = [
     path('mentor/quizzes/<int:pk>/questions/', views.mentor_quiz_questions, name='mentor_quiz_questions'),
     path('mentor/quizzes/<int:pk>/questions/<int:question_id>/delete/', views.mentor_question_delete, name='mentor_question_delete'),
 
+    # Student progress + printing (Mentor)
+    path('mentor/progress/', views.mentor_progress_overview, name='mentor_progress_overview'),
+    path('mentor/quizzes/<int:pk>/progress/', views.mentor_exam_progress, name='mentor_exam_progress'),
+    path('mentor/quizzes/<int:pk>/print/', views.mentor_quiz_print, name='mentor_quiz_print'),
+
     # ---------------------------------------------------------
     # ADMIN — account management
     # ---------------------------------------------------------
@@ -57,13 +62,18 @@ urlpatterns = [
     path('admin-panel/users/<int:user_id>/', views.admin_user_detail, name='admin_user_detail'),
     path('admin-panel/users/<int:user_id>/toggle-active/', views.admin_user_toggle_active, name='admin_user_toggle_active'),
     path('admin-panel/users/<int:user_id>/delete/', views.admin_user_delete, name='admin_user_delete'),
+    path('admin-panel/users/<int:user_id>/unlock/', views.admin_user_unlock, name='admin_user_unlock'),
+    path('admin-panel/users/<int:user_id>/reset-password/', views.admin_user_reset_password, name='admin_user_reset_password'),
     path('admin-panel/mentors/create/', views.admin_mentor_create, name='admin_mentor_create'),
+
+    # Exam monitoring (Admin)
 
     # ---------------------------------------------------------
     # EMAIL VERIFICATION + PASSWORD RESET
     # ---------------------------------------------------------
     path('verify-email/', views.verify_email_view, name='verify_email'),
     path('verify-email/resend/', views.resend_verification_otp, name='resend_verification_otp'),
+    path('verify-email/confirm/<int:user_id>/<str:token>/', views.verify_email_confirm_view, name='verify_email_confirm'),
     path('forgot-password/', views.forgot_password_request_view, name='forgot_password_request'),
     path('reset-password/', views.reset_password_confirm_view, name='reset_password_confirm'),
     path('reset-password/resend/', views.resend_reset_otp, name='resend_reset_otp'),

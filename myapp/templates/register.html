@@ -7,7 +7,7 @@
     <title>JCAD CodeQuest - Create Account</title>
     <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
 </head>
-<body class="bg-slate-900 font-sans flex flex-col justify-center items-center h-screen m-0">
+<body class="bg-slate-900 font-sans flex flex-col justify-center items-center min-h-screen py-8 m-0">
 
     <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full mx-4 border border-red-900/50">
         <h1 class="text-3xl font-extrabold text-red-500 mb-2">JCAD CodeQuest 🎮</h1>
@@ -21,21 +21,43 @@
             {% endfor %}
         {% endif %}
 
-        <form method="POST">
+        {# novalidate: the browser's own pop-ups are switched off so our clear messages are shown instead #}
+        <form method="POST" novalidate>
             {% csrf_token %}
+
             <div class="mb-4 text-left">
                 <label class="text-slate-300 text-xs font-semibold block mb-2">CHOOSE USERNAME</label>
-                <input type="text" name="username" placeholder="e.g., CodeWarrior" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required>
+                <input type="text" name="username" id="id_username" maxlength="20" autocomplete="username"
+                       value="{{ form.username.value|default_if_none:'' }}"
+                       placeholder="e.g., code_warrior1"
+                       class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500">
+                <p id="username-hint" class="text-xs text-red-400 mt-1">{{ form.username.errors|join:" " }}</p>
             </div>
 
             <div class="mb-4 text-left">
-                <label class="text-slate-300 text-xs font-semibold block mb-2">EMAIL ADDRESS</label>
-                <input type="email" name="email" placeholder="your@email.com" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required>
+                <label class="text-slate-300 text-xs font-semibold block mb-2">GMAIL ADDRESS</label>
+                <input type="text" name="email" id="id_email" autocomplete="email"
+                       value="{{ form.email.value|default_if_none:'' }}"
+                       placeholder="yourname@gmail.com"
+                       class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500">
+                <p id="email-hint" class="text-xs text-red-400 mt-1">{{ form.email.errors|join:" " }}</p>
+            </div>
+
+            <div class="mb-4 text-left">
+                <label class="text-slate-300 text-xs font-semibold block mb-2">CREATE PASSWORD</label>
+                <input type="password" name="password" id="id_password" autocomplete="new-password"
+                       placeholder="Create a strong password"
+                       class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500">
+                {% include 'password_strength.html' with input_id='id_password' %}
+                {% if form.password.errors %}<p class="text-xs text-red-400 mt-1">{{ form.password.errors|join:" " }}</p>{% endif %}
             </div>
 
             <div class="mb-6 text-left">
-                <label class="text-slate-300 text-xs font-semibold block mb-2">CREATE PASSWORD</label>
-                <input type="password" name="password" placeholder="Min. 8 characters" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500" required minlength="8">
+                <label class="text-slate-300 text-xs font-semibold block mb-2">CONFIRM PASSWORD</label>
+                <input type="password" name="confirm_password" id="id_confirm_password" autocomplete="new-password"
+                       placeholder="Re-enter your password"
+                       class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-red-500">
+                <p id="confirm-hint" class="text-xs text-red-400 mt-1">{{ form.confirm_password.errors|join:" " }}</p>
             </div>
 
             <button type="submit" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20 mb-4">
@@ -47,6 +69,39 @@
             </p>
         </form>
     </div>
+
+<script>
+(function () {
+    // Live hints while typing. The server repeats every check, so these are
+    // only here to help the user fix mistakes early.
+    var USERNAME_ERROR = "Username must be 8\u201320 characters and may contain letters, numbers, and underscores.";
+    var GMAIL_ERROR = "Please enter a valid Gmail address ending in @gmail.com.";
+
+    var username = document.getElementById("id_username");
+    var email = document.getElementById("id_email");
+    var password = document.getElementById("id_password");
+    var confirm = document.getElementById("id_confirm_password");
+    var usernameHint = document.getElementById("username-hint");
+    var emailHint = document.getElementById("email-hint");
+    var confirmHint = document.getElementById("confirm-hint");
+
+    username.addEventListener("input", function () {
+        var v = username.value;
+        usernameHint.textContent = (v && !/^[A-Za-z0-9_]{8,20}$/.test(v)) ? USERNAME_ERROR : "";
+    });
+
+    email.addEventListener("input", function () {
+        var v = email.value.trim();
+        emailHint.textContent = (v && !/^[A-Za-z0-9._+-]+@gmail\.com$/i.test(v)) ? GMAIL_ERROR : "";
+    });
+
+    function checkConfirm() {
+        confirmHint.textContent = (confirm.value && confirm.value !== password.value) ? "Passwords do not match." : "";
+    }
+    password.addEventListener("input", checkConfirm);
+    confirm.addEventListener("input", checkConfirm);
+})();
+</script>
 
 </body>
 </html>

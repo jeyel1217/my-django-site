@@ -6,11 +6,11 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
         <div class="lg:col-span-2">
             <h2 class="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
-                Welcome back, {{ request.user.username|default:"John" }}! 👋
+                Welcome, {{ profile.display_name }}! 👋
             </h2>
             <p class="text-slate-500 text-sm mt-1">Continue your learning journey and achieve your goals.</p>
         </div>
-        
+
         <!-- Progress Card -->
         <div class="bg-red-900 text-white p-5 rounded-2xl shadow-sm flex items-center justify-between relative overflow-hidden">
             <div class="space-y-1 z-10">

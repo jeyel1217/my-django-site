@@ -7,12 +7,18 @@
              class="w-32 h-32 rounded-full object-cover mx-auto mb-4 border-4 border-red-50">
     {% else %}
         <div class="w-32 h-32 rounded-full bg-red-50 text-red-700 flex items-center justify-center text-4xl font-black mx-auto mb-4">
-            {{ profile.user.username|first|upper }}
+            {{ profile.display_name|first|upper }}
         </div>
     {% endif %}
 
-    <h2 class="text-xl font-extrabold text-slate-800">{{ profile.user.username }}</h2>
+    <h2 class="text-xl font-extrabold text-slate-800">{{ profile.display_name }}</h2>
     <p class="text-slate-500 text-sm mt-2">{{ profile.bio|default:"No bio yet." }}</p>
+
+    <div class="mt-5 space-y-1 text-sm text-slate-600 text-left max-w-xs mx-auto">
+        <p><span class="font-semibold text-slate-500">Name:</span> {{ profile.name|default:"Not added yet" }}</p>
+        <p><span class="font-semibold text-slate-500">Username:</span> {{ profile.user.username }}</p>
+        <p><span class="font-semibold text-slate-500">Gmail:</span> {{ profile.user.email|default:"Not set" }}</p>
+    </div>
 
     <div class="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100 text-sm">
         <div>

@@ -28,15 +28,16 @@
             Didn't get it? Check your spam folder, or request a new link below.
         </p>
 
-        <form method="POST" action="{% url 'resend_verification_otp' %}">
+        <form method="POST" action="{% url 'resend_verification_otp' %}" id="resend-form">
             {% csrf_token %}
-            {% if resend_wait > 0 %}
-                <p class="text-slate-500 text-xs">Resend available in {{ resend_wait }}s</p>
-            {% else %}
-                <button type="submit" class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20">
-                    Resend Confirmation Link
-                </button>
-            {% endif %}
+            <p id="resend-text" class="text-slate-500 text-xs" {% if resend_wait <= 0 %}style="display:none"{% endif %}>
+                Resend available in <span id="resend-secs">{{ resend_wait }}</span>s
+            </p>
+            <button type="submit" id="resend-btn"
+                {% if resend_wait > 0 %}style="display:none"{% endif %}
+                class="w-full bg-red-600 text-white font-bold py-2.5 rounded-lg hover:bg-red-700 transition shadow-lg shadow-red-600/20">
+                Resend Confirmation Link
+            </button>
         </form>
 
         <p class="text-slate-400 text-xs mt-6">
@@ -44,5 +45,28 @@
         </p>
     </div>
 
+    <script>
+    // Live countdown: ticks every second, then swaps the text for the button
+    // without a page reload. The server still enforces the real cooldown.
+    (function () {
+        var secsEl = document.getElementById("resend-secs");
+        var textEl = document.getElementById("resend-text");
+        var btnEl = document.getElementById("resend-btn");
+        var wait = parseInt(secsEl.textContent, 10) || 0;
+        if (wait <= 0) { return; }
+        var deadline = Date.now() + wait * 1000;
+        function tick() {
+            var left = Math.ceil((deadline - Date.now()) / 1000);
+            if (left <= 0) {
+                textEl.style.display = "none";
+                btnEl.style.display = "block";
+                return;
+            }
+            secsEl.textContent = left;
+            setTimeout(tick, 250);
+        }
+        tick();
+    })();
+    </script>
 </body>
 </html>

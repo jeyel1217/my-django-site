@@ -26,9 +26,39 @@
             </div>
 
             <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2">INSTRUCTIONS</label>
+                {{ form.instructions }}
+                <p class="text-xs text-slate-400 mt-1">Shown to students and printed on the paper copy. Leave empty to use the standard instructions.</p>
+            </div>
+
+            <div>
                 <label class="text-slate-500 text-xs font-semibold block mb-2">LINKED LESSON (optional)</label>
                 {{ form.lesson }}
                 {% if form.lesson.errors %}<p class="text-xs text-red-600 mt-1">{{ form.lesson.errors|join:", " }}</p>{% endif %}
+            </div>
+
+            <!-- Schedule. All times are Philippine Time (UTC+8). -->
+            <div class="border border-slate-200 rounded-lg p-4 space-y-4 bg-slate-50">
+                <p class="text-slate-500 text-xs font-semibold">SCHEDULE <span class="font-normal text-slate-400">&middot; Philippine Time</span></p>
+
+                <div>
+                    <label class="text-slate-500 text-xs font-semibold block mb-2">START (optional)</label>
+                    {{ form.start_datetime }}
+                    <p class="text-xs text-slate-400 mt-1">Students cannot open the quiz before this time. Leave empty to open it right away.</p>
+                    {% if form.start_datetime.errors %}<p class="text-xs text-red-600 mt-1">{{ form.start_datetime.errors|join:" " }}</p>{% endif %}
+                </div>
+
+                <div class="flex items-center gap-2">
+                    {{ form.has_deadline }}
+                    <label for="{{ form.has_deadline.id_for_label }}" class="text-sm text-slate-700">This quiz has a deadline</label>
+                </div>
+
+                <div id="deadline-box">
+                    <label class="text-slate-500 text-xs font-semibold block mb-2">DEADLINE</label>
+                    {{ form.deadline_datetime }}
+                    <p class="text-xs text-slate-400 mt-1">Submissions after this time are automatically marked Late.</p>
+                    {% if form.deadline_datetime.errors %}<p class="text-xs text-red-600 mt-1">{{ form.deadline_datetime.errors|join:" " }}</p>{% endif %}
+                </div>
             </div>
 
             <div class="flex items-center gap-2">
@@ -49,4 +79,16 @@
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    // Show the deadline box only while "This quiz has a deadline" is ticked.
+    var box = document.getElementById("deadline-box");
+    var check = document.getElementById("{{ form.has_deadline.id_for_label }}");
+    if (!box || !check) { return; }
+    function sync() { box.style.display = check.checked ? "block" : "none"; }
+    check.addEventListener("change", sync);
+    sync();
+})();
+</script>
 {% endblock %}

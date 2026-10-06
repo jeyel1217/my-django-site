@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <a href="{% url 'mentor_progress_overview' %}" class="text-sm text-slate-500 hover:text-red-700">
+        <i class="fa-solid fa-arrow-left"></i> Back to Student Progress
+    </a>
+
+    <!-- Header -->
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">{{ quiz.title }}</h2>
+            <p class="text-slate-500 text-sm mt-1">
+                {{ question_count }} question{{ question_count|pluralize }}
+                {% if is_admin and mentor_name %}&middot; Mentor: <span class="font-semibold text-slate-700">{{ mentor_name }}</span>{% endif %}
+            </p>
+            <p class="text-sm mt-2 text-slate-600">
+                {% if quiz.start_datetime %}Start: <span class="font-semibold">{{ quiz.start_datetime|date:"M j, Y – g:i A" }}</span> &nbsp;&middot;&nbsp;{% endif %}
+                {% if quiz.deadline_datetime %}
+                    Deadline: <span class="font-semibold {% if past_deadline %}text-orange-600{% endif %}">{{ quiz.deadline_datetime|date:"M j, Y – g:i A" }}</span>
+                {% else %}
+                    <span class="text-slate-400">No deadline set</span>
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'mentor_quiz_print' quiz.pk %}" target="_blank"
+           class="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 transition text-sm">
+            <i class="fa-solid fa-print"></i> Print Quiz
+        </a>
+    </div>
+
+    <!-- Summary (recalculated every time the page loads) -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">TOTAL STUDENTS</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ summary.total }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">&#10003; COMPLETED</p>
+            <p class="text-2xl font-extrabold text-sky-700 mt-1">{{ summary.completed }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">&#10003; ON TIME</p>
+            <p class="text-2xl font-extrabold text-emerald-600 mt-1">{{ summary.on_time }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">&#9888; LATE</p>
+            <p class="text-2xl font-extrabold text-red-600 mt-1">{{ summary.late }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm col-span-2 lg:col-span-1">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">&#9675; NOT TAKEN</p>
+            <p class="text-2xl font-extrabold text-slate-600 mt-1">{{ summary.not_taken }}</p>
+            {% if summary.missed %}<p class="text-xs font-semibold text-orange-600 mt-1">&#9888; {{ summary.missed }} missed the deadline</p>{% endif %}
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="flex flex-wrap gap-2">
+        {% for key, label in filters %}
+            <a href="?show={{ key }}"
+               class="px-3 py-1.5 rounded-full text-xs font-semibold border {% if show == key %}bg-red-700 text-white border-red-700{% else %}bg-white text-slate-600 border-slate-300 hover:bg-slate-50{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </div>
+
+    <!-- Progress table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <caption class="text-left px-5 pt-4 pb-1 text-xs font-bold text-slate-400 tracking-wider">STUDENT PROGRESS &middot; {{ quiz.title|upper }}</caption>
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Student</th>
+                    <th class="text-left px-5 py-3">Started</th>
+                    <th class="text-left px-5 py-3">Submitted</th>
+                    <th class="text-left px-5 py-3">Score</th>
+                    <th class="text-left px-5 py-3">Percentage</th>
+                    <th class="text-left px-5 py-3">Deadline</th>
+                    <th class="text-left px-5 py-3">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for r in rows %}
+                <tr>
+                    <td class="px-5 py-3">
+                        <div class="font-semibold text-slate-800">{{ r.name }}</div>
+                        <div class="text-xs text-slate-400">@{{ r.username }}</div>
+                    </td>
+                    <td class="px-5 py-3 text-slate-500 text-xs whitespace-nowrap">
+                        {% if r.started_at %}{{ r.started_at|date:"M j, Y – g:i A" }}{% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-xs whitespace-nowrap {{ r.submitted_css }}">
+                        {% if r.submitted_at %}
+                            {{ r.submitted_at|date:"M j, Y – g:i A" }}
+                            {% if r.late_text %}<div class="font-normal">{{ r.late_text }}</div>{% endif %}
+                        {% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-700 whitespace-nowrap">
+                        {% if r.attempts %}{{ r.score_text|default:"&mdash;" }}{% else %}&mdash;{% endif %}
+                        {% if r.attempts > 1 %}<div class="text-xs text-slate-400">best of {{ r.attempts }} attempts</div>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-700">
+                        {% if r.percentage is not None %}{{ r.percentage }}%{% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-xs whitespace-nowrap {{ r.deadline_css }}">
+                        {% if quiz.deadline_datetime %}{{ quiz.deadline_datetime|date:"M j, Y – g:i A" }}{% else %}<span class="text-slate-400">No deadline</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 whitespace-nowrap">
+                        <span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ r.status_css }}">{{ r.status_label }}</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-slate-400 p-10">No students match this filter.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-xs text-slate-400">
+        Times are Philippine Time. If a student submits more than once, their first submission decides On Time / Late, and the best score is shown.
+    </p>
+</div>
+{% endblock %}

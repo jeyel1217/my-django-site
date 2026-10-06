@@ -31,8 +31,24 @@ class Profile(models.Model):
     # in register_view, then must verify via OTP.
     is_verified = models.BooleanField(default=True)
 
+    # Optional display/real name. Shown in welcome messages instead of the
+    # username when it is filled in.
+    name = models.CharField(max_length=50, blank=True, default='')
+
+    # Login protection: 3 wrong passwords in a row lock the account until the
+    # password is reset through the emailed verification code.
+    failed_login_attempts = models.PositiveIntegerField(default=0)
+    is_locked = models.BooleanField(default=False)
+    locked_at = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return f"{self.user.username} ({self.role})"
+
+    @property
+    def display_name(self):
+        """Name takes priority; falls back to the username."""
+        name = (self.name or '').strip()
+        return name if name else self.user.username
 
     # --- Role helpers ---
     @property
@@ -148,12 +164,38 @@ class Quiz(models.Model):
         help_text="Unpublished (draft) quizzes are hidden from Students."
     )
 
+    # Shown to students and printed on the paper copy.
+    instructions = models.TextField(blank=True, default='')
+
+    # Schedule. Both are optional: no start = open immediately, no deadline =
+    # nothing to be "late" for. Late / on-time is always CALCULATED from these
+    # and the attempt's submission time, never typed in by hand.
+    start_datetime = models.DateTimeField(null=True, blank=True)
+    deadline_datetime = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, editable=False)
+    updated_at = models.DateTimeField(auto_now=True, null=True, editable=False)
+
     def __str__(self):
         return self.title
 
     @property
     def total_questions(self):
         return self.questions.count()
+
+    @property
+    def has_deadline(self):
+        return self.deadline_datetime is not None
+
+    def is_not_open_yet(self, now=None):
+        from django.utils import timezone
+        now = now or timezone.now()
+        return self.start_datetime is not None and now < self.start_datetime
+
+    def is_past_deadline(self, now=None):
+        from django.utils import timezone
+        now = now or timezone.now()
+        return self.deadline_datetime is not None and now > self.deadline_datetime
 
 
 class Question(models.Model):
@@ -177,10 +219,33 @@ class QuizAttempt(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quiz_attempts')
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='attempts')
     score = models.PositiveIntegerField(help_text="Percentage score 0-100")
+    # taken_at is stamped automatically the moment the student submits, so it
+    # IS the submission time (see submitted_at below).
     taken_at = models.DateTimeField(auto_now_add=True)
+
+    # When the student first opened the quiz (recorded in the session, saved on submit).
+    started_at = models.DateTimeField(null=True, blank=True)
+    # Raw result, kept so it stays correct even if the Mentor later edits the quiz.
+    # Empty for attempts made before this feature existed.
+    correct_count = models.PositiveIntegerField(null=True, blank=True)
+    total_questions = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} - {self.quiz.title}: {self.score}%"
+
+    @property
+    def submitted_at(self):
+        return self.taken_at
+
+    @property
+    def percentage(self):
+        return self.score
+
+    @property
+    def is_late(self):
+        """True only when the quiz has a deadline AND this was submitted after it."""
+        deadline = self.quiz.deadline_datetime
+        return deadline is not None and self.taken_at > deadline
 
 
 # ---------------------------------------------------------

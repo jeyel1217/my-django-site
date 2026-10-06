@@ -17,7 +17,8 @@ class QuestionAdmin(admin.ModelAdmin):
 
 
 class QuizAdmin(admin.ModelAdmin):
-    list_display = ('title', 'lesson', 'total_questions', 'created_by')
+    list_display = ('title', 'lesson', 'total_questions', 'created_by', 'is_published', 'start_datetime', 'deadline_datetime')
+    list_filter = ('is_published',)
 
 
 class LessonAdmin(admin.ModelAdmin):
@@ -26,9 +27,10 @@ class LessonAdmin(admin.ModelAdmin):
 
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'streak_days')
-    list_filter = ('role',)
-    search_fields = ('user__username', 'user__email')
+    list_display = ('user', 'name', 'role', 'is_verified', 'is_locked', 'failed_login_attempts')
+    list_filter = ('role', 'is_verified', 'is_locked')
+    search_fields = ('user__username', 'user__email', 'name')
+    # To unlock someone manually: untick "is locked" and set the attempts to 0.
 
 
 admin.site.register(Profile, ProfileAdmin)
