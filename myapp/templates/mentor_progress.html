@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Student Progress</h2>
+        <p class="text-slate-500 text-sm mt-1">See who has taken each of your quizzes, and who is late or hasn't started.</p>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Quiz</th>
+                    <th class="text-left px-5 py-3">Deadline</th>
+                    <th class="text-left px-5 py-3">Students</th>
+                    <th class="text-left px-5 py-3">&#10003; Completed</th>
+                    <th class="text-left px-5 py-3">&#10003; On Time</th>
+                    <th class="text-left px-5 py-3">&#9888; Late</th>
+                    <th class="text-left px-5 py-3">&#9675; Not Taken</th>
+                    <th class="text-right px-5 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for item in items %}
+                <tr>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ item.quiz.title }}
+                        {% if not item.quiz.is_published %}<span class="text-xs font-normal text-slate-400">(draft)</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-xs text-slate-600 whitespace-nowrap">
+                        {% if item.quiz.deadline_datetime %}{{ item.quiz.deadline_datetime|date:"M j, Y – g:i A" }}{% else %}<span class="text-slate-400">No deadline</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-700">{{ item.summary.total }}</td>
+                    <td class="px-5 py-3 font-semibold text-sky-700">{{ item.summary.completed }}</td>
+                    <td class="px-5 py-3 font-semibold text-emerald-600">{{ item.summary.on_time }}</td>
+                    <td class="px-5 py-3 font-semibold text-red-600">{{ item.summary.late }}</td>
+                    <td class="px-5 py-3 font-semibold text-slate-600">{{ item.summary.not_taken }}
+                        {% if item.summary.missed %}<span class="text-xs font-semibold text-orange-600">({{ item.summary.missed }} missed)</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right whitespace-nowrap">
+                        <a href="{% url 'mentor_exam_progress' item.quiz.pk %}" class="text-red-700 hover:underline font-semibold">View students</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-slate-400 p-10">You haven't created any quizzes yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

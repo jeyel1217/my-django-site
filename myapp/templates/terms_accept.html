@@ -1,0 +1,32 @@
+{% extends 'terms_base.html' %}
+{% load terms_tags %}
+{% block title %}Accept Terms{% endblock %}
+{% block page %}
+<div class="card">
+    <h1>{{ terms.title }}</h1>
+    <p class="meta">Version {{ terms.version }} &middot; published {{ terms.published_at|date:"F d, Y" }}.
+        You must read and accept these Terms before you can use your student dashboard.</p>
+
+    {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+
+    <div class="body" tabindex="0" aria-label="Terms and Conditions text">{{ terms.content|terms_format }}</div>
+
+    <form method="POST" class="consent" id="consent-form">
+        {% csrf_token %}
+        <label>
+            <input type="checkbox" name="agree" id="agree">
+            <span>I have read and understood the Terms and Conditions and I agree to follow them. <strong style="color:var(--maroon)">(Required)</strong></span>
+        </label>
+        <button type="submit" id="accept-btn" class="btn" disabled>Accept Terms and Conditions</button>
+        <p style="text-align:center;margin:12px 0 0"><a class="link" href="{% url 'logout' %}">I do not agree &mdash; log out</a></p>
+    </form>
+</div>
+<script>
+(function () {
+    // The button stays disabled until the box is ticked. The server checks the box again.
+    var box = document.getElementById("agree"), btn = document.getElementById("accept-btn");
+    box.checked = false;
+    box.addEventListener("change", function () { btn.disabled = !box.checked; });
+})();
+</script>
+{% endblock %}

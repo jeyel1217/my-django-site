@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+    <a href="{% url 'admin_terms_list' %}" class="text-sm text-slate-500 hover:text-red-700"><i class="fa-solid fa-arrow-left"></i> Back to Terms &amp; Consent</a>
+    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-extrabold text-slate-800 mb-1">Publish a new version</h2>
+        <p class="text-slate-500 text-sm mb-6">Older versions are kept forever so every student's consent still points to the text they accepted. The box below starts with the current text so you can edit it.</p>
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="text-slate-600 text-xs font-semibold block mb-1" for="id_version">VERSION LABEL</label>
+                {{ form.version }}
+                {% if form.version.errors %}<p class="text-xs text-red-600 mt-1">{{ form.version.errors|join:" " }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="text-slate-600 text-xs font-semibold block mb-1" for="id_title">TITLE</label>
+                {{ form.title }}
+            </div>
+            <div>
+                <label class="text-slate-600 text-xs font-semibold block mb-1" for="id_content">TEXT</label>
+                {{ form.content }}
+                <p class="text-xs text-slate-400 mt-1">{{ form.content.help_text }}</p>
+                {% if form.content.errors %}<p class="text-xs text-red-600 mt-1">{{ form.content.errors|join:" " }}</p>{% endif %}
+            </div>
+            <label class="flex items-start gap-3 text-sm text-slate-700">
+                <input type="checkbox" name="requires_reacceptance" id="id_requires_reacceptance" class="mt-1" {% if form.requires_reacceptance.value %}checked{% endif %}>
+                <span>{{ form.requires_reacceptance.label }}</span>
+            </label>
+            <button type="submit" class="bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">Publish version</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

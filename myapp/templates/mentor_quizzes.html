@@ -18,8 +18,10 @@
             <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                 <tr>
                     <th class="text-left px-5 py-3">Title</th>
+                    <th class="text-left px-5 py-3">Classroom</th>
                     <th class="text-left px-5 py-3">Linked Lesson</th>
                     <th class="text-left px-5 py-3">Questions</th>
+                    <th class="text-left px-5 py-3">Deadline</th>
                     <th class="text-left px-5 py-3">Status</th>
                     <th class="text-right px-5 py-3">Actions</th>
                 </tr>
@@ -28,8 +30,12 @@
                 {% for quiz in quizzes %}
                 <tr>
                     <td class="px-5 py-3 font-semibold text-slate-800">{{ quiz.title }}</td>
+                    <td class="px-5 py-3 text-slate-600 text-xs">{% if quiz.classroom %}{{ quiz.classroom.name }}{% else %}<span class="text-amber-600 font-semibold">Not assigned</span>{% endif %}</td>
                     <td class="px-5 py-3 text-slate-600">{{ quiz.lesson.title|default:"—" }}</td>
                     <td class="px-5 py-3 text-slate-600">{{ quiz.total_questions }}</td>
+                    <td class="px-5 py-3 text-slate-600 text-xs whitespace-nowrap">
+                        {% if quiz.deadline_datetime %}{{ quiz.deadline_datetime|date:"M j, Y – g:i A" }}{% else %}<span class="text-slate-400">No deadline</span>{% endif %}
+                    </td>
                     <td class="px-5 py-3">
                         {% if quiz.is_published %}
                             <span class="text-emerald-600 text-xs font-semibold">Published</span>
@@ -37,15 +43,17 @@
                             <span class="text-slate-400 text-xs font-semibold">Draft</span>
                         {% endif %}
                     </td>
-                    <td class="px-5 py-3 text-right space-x-3">
+                    <td class="px-5 py-3 text-right space-x-3 whitespace-nowrap">
                         <a href="{% url 'mentor_quiz_questions' quiz.pk %}" class="text-red-700 hover:underline font-semibold">Questions</a>
+                        <a href="{% url 'mentor_exam_progress' quiz.pk %}" class="text-red-700 hover:underline font-semibold">Progress</a>
+                        <a href="{% url 'mentor_quiz_print' quiz.pk %}" target="_blank" class="text-red-700 hover:underline font-semibold">Print Quiz</a>
                         <a href="{% url 'mentor_quiz_edit' quiz.pk %}" class="text-red-700 hover:underline font-semibold">Edit</a>
                         <a href="{% url 'mentor_quiz_delete' quiz.pk %}" class="text-slate-400 hover:text-red-600 hover:underline font-semibold">Delete</a>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center text-slate-400 p-10">
+                    <td colspan="7" class="text-center text-slate-400 p-10">
                         You haven't created any quizzes yet.
                     </td>
                 </tr>

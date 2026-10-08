@@ -19,6 +19,7 @@
                 <tr>
                     <th class="text-left px-5 py-3">Order</th>
                     <th class="text-left px-5 py-3">Title</th>
+                    <th class="text-left px-5 py-3">Classroom</th>
                     <th class="text-left px-5 py-3">Status</th>
                     <th class="text-right px-5 py-3">Actions</th>
                 </tr>
@@ -28,6 +29,7 @@
                 <tr>
                     <td class="px-5 py-3 text-slate-600">{{ lesson.order }}</td>
                     <td class="px-5 py-3 font-semibold text-slate-800">{{ lesson.title }}</td>
+                    <td class="px-5 py-3 text-slate-600 text-xs">{% if lesson.classroom %}{{ lesson.classroom.name }}{% else %}<span class="text-amber-600 font-semibold">Not assigned</span>{% endif %}</td>
                     <td class="px-5 py-3">
                         {% if lesson.is_published %}
                             <span class="text-emerald-600 text-xs font-semibold">Published</span>
@@ -42,7 +44,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-slate-400 p-10">
+                    <td colspan="5" class="text-center text-slate-400 p-10">
                         You haven't created any lessons yet.
                     </td>
                 </tr>

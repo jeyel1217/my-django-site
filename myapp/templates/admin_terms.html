@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load terms_tags %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">Terms &amp; Consent</h2>
+            <p class="text-slate-500 text-sm mt-1">Publish new versions of the Terms and see who has accepted.</p>
+        </div>
+        <a href="{% url 'admin_terms_publish' %}" class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+            <i class="fa-solid fa-plus"></i> Publish New Version
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">REQUIRED VERSION</p>
+            <p class="text-2xl font-extrabold text-slate-800">{% if required %}v{{ required.version }}{% else %}&mdash;{% endif %}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">STUDENTS ACCEPTED</p>
+            <p class="text-2xl font-extrabold text-emerald-600">{{ accepted }} <span class="text-sm text-slate-400 font-semibold">of {{ students }}</span></p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">STILL WAITING</p>
+            <p class="text-2xl font-extrabold {% if waiting %}text-amber-600{% else %}text-slate-800{% endif %}">{{ waiting }}</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Version</th>
+                    <th class="text-left px-5 py-3">Published</th>
+                    <th class="text-left px-5 py-3">Type</th>
+                    <th class="text-left px-5 py-3">Accepted by</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for v in versions %}
+                <tr>
+                    <td class="px-5 py-3 font-semibold text-slate-800">v{{ v.version }}{% if forloop.first %} <span class="text-emerald-600 text-xs font-bold">CURRENT</span>{% endif %}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ v.published_at|date:"M d, Y, P" }}</td>
+                    <td class="px-5 py-3 text-slate-600">{% if v.requires_reacceptance %}Major (re-accept){% else %}Minor{% endif %}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ v.accept_count }} user{{ v.accept_count|pluralize }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="px-5 py-6 text-center text-slate-400">No versions yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

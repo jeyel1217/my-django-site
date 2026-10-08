@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">My Classrooms</h2>
+            <p class="text-slate-500 text-sm mt-1">Each classroom has its own code, students, lessons and quizzes.</p>
+        </div>
+        <a href="{% url 'mentor_classroom_create' %}" class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm"><i class="fa-solid fa-plus"></i> New Classroom</a>
+    </div>
+    {% include 'mentor_classroom_cards.html' %}
+</div>
+{% endblock %}

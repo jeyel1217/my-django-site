@@ -1,0 +1,18 @@
+{% extends 'terms_base.html' %}
+{% load terms_tags %}
+{% block page %}
+<div class="card">
+    {% if terms %}
+        <h1>{{ terms.title }}</h1>
+        <p class="meta">Version {{ terms.version }} &middot; published {{ terms.published_at|date:"F d, Y" }}</p>
+        <div class="body">{{ terms.content|terms_format }}</div>
+    {% else %}
+        <h1>Terms and Conditions</h1>
+        <p class="meta">No Terms have been published yet.</p>
+    {% endif %}
+    <p style="margin-top:16px">
+        {% if request.user.is_authenticated %}<a class="link" href="{% url 'home' %}">&larr; Back to my dashboard</a>
+        {% else %}<a class="link" href="{% url 'register' %}">&larr; Back to Create Account</a>{% endif %}
+    </p>
+</div>
+{% endblock %}

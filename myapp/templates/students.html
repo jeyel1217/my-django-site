@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-5">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Students</h2>
+        <p class="text-slate-500 text-sm mt-1">Search the students in your classrooms. Click a name to see their progress.</p>
+    </div>
+
+    <form id="search-form" method="GET" action="{% url 'staff_students' %}" class="flex flex-col sm:flex-row gap-3" role="search">
+        <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true"></i>
+            <input id="q" name="q" type="text" value="{{ q }}" autocomplete="off" aria-label="Search students"
+                   placeholder="Search student by name or student ID..."
+                   class="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-lg text-sm focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100">
+            <button type="button" id="clear" aria-label="Clear search" class="{% if not q %}hidden{% endif %} absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100">&times;</button>
+        </div>
+        <select id="room" name="room" aria-label="Filter by classroom" class="py-2.5 px-3 border border-slate-300 rounded-lg text-sm bg-white">
+            <option value="">All classrooms</option>
+            {% for r in rooms %}<option value="{{ r.id }}" {% if r.id == room_id %}selected{% endif %}>{{ r.name }}{% if request.user.profile.role == 'ADMIN' %} ({{ r.mentor.username }}){% endif %}</option>{% endfor %}
+        </select>
+        <noscript><button type="submit" class="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-sm">Search</button></noscript>
+    </form>
+
+    <div id="results" aria-live="polite">{% include 'students_results.html' %}</div>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('search-form'), q = document.getElementById('q'),
+      room = document.getElementById('room'), clear = document.getElementById('clear'),
+      box = document.getElementById('results'), timer = null, seq = 0;
+  function load(page) {
+    var params = new URLSearchParams({ q: q.value.trim(), room: room.value, page: page || 1 });
+    var mine = ++seq;
+    box.style.opacity = '.55';
+    fetch(form.action + '?partial=1&' + params.toString(), { headers: { 'X-Requested-With': 'fetch' }, credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (html) {
+        if (mine !== seq) return;                       // a newer search already started
+        box.innerHTML = html; box.style.opacity = '1';
+        history.replaceState(null, '', form.action + '?' + params.toString());
+      })
+      .catch(function () {
+        box.style.opacity = '1';
+        box.insertAdjacentHTML('afterbegin', '<p class="text-sm text-red-600 mb-3">Could not update the list. Check your connection and try again.</p>');
+      });
+  }
+  q.addEventListener('input', function () {
+    clear.classList.toggle('hidden', !q.value);
+    clearTimeout(timer); timer = setTimeout(function () { load(1); }, 250);
+  });
+  room.addEventListener('change', function () { load(1); });
+  clear.addEventListener('click', function () { q.value = ''; clear.classList.add('hidden'); q.focus(); load(1); });
+  form.addEventListener('submit', function (e) { e.preventDefault(); load(1); });
+  box.addEventListener('click', function (e) {
+    var a = e.target.closest('a[data-page]');
+    if (a) { e.preventDefault(); load(a.getAttribute('data-page')); }
+  });
+})();
+</script>
+{% endblock %}

@@ -15,7 +15,7 @@ SECRET_KEY = 'django-insecure-lzkdlmjjk-!z&6(8g@n7@ix0j8!2bmsm@ggs38%q_kce6-sc6@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['johnlloyd1217.pythonanywhere.com']
+ALLOWED_HOSTS = ['jcad.pythonanywhere.com', 'johnlloyd1217.pythonanywhere.com', '127.0.0.1', 'localhost']
 
 # Application definition
 INSTALLED_APPS = [
@@ -35,6 +35,8 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'myapp.middleware.TermsConsentMiddleware',   # students must accept the Terms
+    'myapp.middleware.AccountStatusMiddleware',  # deactivated students are limited to the status page
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -50,6 +52,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'myapp.context_processors.student_notices',
             ],
         },
     },
@@ -81,7 +84,7 @@ USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'
-STATIC_ROOT = '/home/johnlloyd1217/my-django-site/static'
+STATIC_ROOT = BASE_DIR / 'static'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Media Handling
@@ -101,3 +104,9 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# --- Deadline notifications (Phase 3) ---------------------------------
+# Links in e-mails use SITE_URL. Set both in .env on the server.
+import os as _os
+SITE_URL = _os.environ.get('SITE_URL', 'https://jcad.pythonanywhere.com')
+ADMIN_CONTACT_EMAIL = _os.environ.get('ADMIN_CONTACT_EMAIL', 'jcadlearn@gmail.com')

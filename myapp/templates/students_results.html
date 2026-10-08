@@ -1,0 +1,46 @@
+<p class="text-xs text-slate-500 mb-2">{{ total }} student{{ total|pluralize }}{% if q %} matching &ldquo;{{ q }}&rdquo;{% endif %}</p>
+<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+            <tr>
+                <th class="text-left px-4 py-3">Student</th>
+                <th class="text-left px-4 py-3">Student ID</th>
+                <th class="text-left px-4 py-3">Classroom</th>
+                <th class="text-left px-4 py-3">Lessons</th>
+                <th class="text-left px-4 py-3">Quizzes</th>
+                <th class="text-left px-4 py-3">Overdue</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for r in rows %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <a href="{% url 'student_progress' r.classroom.pk r.student.pk %}" class="flex items-center gap-3 group">
+                        {% if r.student.profile.avatar and not r.student.profile.avatar_flagged %}<img src="{{ r.student.profile.avatar.url }}" alt="" class="flex-shrink-0 w-9 h-9 rounded-full object-cover border border-slate-200">
+                        {% else %}<span class="flex-shrink-0 w-9 h-9 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold" aria-hidden="true">{{ r.student.profile.display_name|slice:":1"|upper }}</span>{% endif %}
+                        <span><span class="font-semibold text-slate-800 group-hover:underline break-words">{{ r.student.profile.display_name }}</span>
+                        <span class="block text-xs text-slate-400">@{{ r.student.username }}</span></span>
+                    </a>
+                </td>
+                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ r.student.profile.student_id|default:"&mdash;" }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ r.classroom.name }}</td>
+                <td class="px-4 py-3 whitespace-nowrap">{{ r.lessons_done }} / {{ r.lessons_total }}</td>
+                <td class="px-4 py-3 whitespace-nowrap">{{ r.quizzes_submitted }} / {{ r.quizzes_total }}</td>
+                <td class="px-4 py-3 whitespace-nowrap">{% if r.overdue %}<span class="inline-block text-xs font-semibold px-2 py-1 rounded border bg-orange-50 text-orange-700 border-orange-200">&#9888; {{ r.overdue }}</span>{% else %}<span class="text-slate-400">0</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-slate-400 p-10">No students found.{% if q %} Try a different name or ID.{% endif %}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="flex items-center justify-between mt-4 text-sm" aria-label="Pages">
+    <span class="text-slate-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    <span class="flex gap-2">
+        {% if page_obj.has_previous %}<a data-page="{{ page_obj.previous_page_number }}" href="?q={{ q|urlencode }}&room={{ room_id|default:'' }}&page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50">&larr; Previous</a>{% endif %}
+        {% if page_obj.has_next %}<a data-page="{{ page_obj.next_page_number }}" href="?q={{ q|urlencode }}&room={{ room_id|default:'' }}&page={{ page_obj.next_page_number }}" class="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50">Next &rarr;</a>{% endif %}
+    </span>
+</nav>
+{% endif %}

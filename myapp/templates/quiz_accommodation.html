@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-xl mx-auto space-y-5">
+    <h2 class="text-2xl font-extrabold text-slate-800">Extension / exemption</h2>
+    <p class="text-sm text-slate-500">{{ student.profile.display_name }} (@{{ student.username }}) &middot; {{ quiz.title }}<br>
+        Current deadline: <strong>{{ quiz.deadline_datetime|date:"M j, Y – g:i A" }}</strong> (Philippine Time)</p>
+    {% if existing %}<div class="px-4 py-3 rounded-lg text-sm bg-violet-50 text-violet-700 border border-violet-200">Current: {{ existing.get_kind_display }}{% if existing.new_deadline %} until {{ existing.new_deadline|date:"M j, Y – g:i A" }}{% endif %}.</div>{% endif %}
+    <form method="POST" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        {% csrf_token %}
+        <div class="space-y-2">{% for radio in form.kind %}<label class="flex items-center gap-2 text-sm text-slate-700">{{ radio.tag }} {{ radio.choice_label }}</label>{% endfor %}</div>
+        {% if form.kind.errors %}<p class="text-xs text-red-600">Choose one.</p>{% endif %}
+        <div><label class="text-slate-500 text-xs font-semibold block mb-1">NEW DEADLINE (extension only)</label>{{ form.new_deadline }}
+            {% if form.new_deadline.errors %}<p class="text-xs text-red-600 mt-1">{{ form.new_deadline.errors|join:" " }}</p>{% endif %}</div>
+        <div><label class="text-slate-500 text-xs font-semibold block mb-1">REASON</label>{{ form.reason }}</div>
+        <button type="submit" class="w-full bg-red-700 text-white font-semibold py-2.5 rounded-lg hover:bg-red-800">Save and notify student</button>
+    </form>
+    {% if existing %}
+    <form method="POST">{% csrf_token %}<input type="hidden" name="action" value="remove">
+        <button class="text-sm text-slate-600 underline">Remove this extension / exemption</button></form>
+    {% endif %}
+</div>
+{% endblock %}

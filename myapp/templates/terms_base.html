@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Terms and Conditions{% endblock %} - JCAD CodeQuest</title>
+    <style>
+        :root { --maroon:#8b1126; --maroon-dark:#6e0d1e; }
+        * { box-sizing: border-box; }
+        body { margin:0; font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:#f1f1f4; color:#1f2937; }
+        .top { background:var(--maroon); color:#fff; padding:14px 20px; display:flex; align-items:center; gap:12px; }
+        .top img { width:40px; height:40px; }
+        .top strong { font-size:15px; letter-spacing:.3px; }
+        .page { max-width:760px; margin:24px auto 48px; padding:0 16px; }
+        .card { background:#fff; border-radius:14px; padding:28px 32px; box-shadow:0 8px 30px rgba(0,0,0,.10); }
+        h1 { font-size:22px; margin:0 0 4px; color:#222; }
+        .meta { font-size:12.5px; color:#6b7280; margin:0 0 18px; }
+        .body { max-height:52vh; overflow-y:auto; padding-right:8px; border-top:1px solid #eee; border-bottom:1px solid #eee; padding-top:6px; padding-bottom:10px; font-size:14px; line-height:1.6; }
+        .body h3 { color:var(--maroon); }
+        .consent { margin-top:18px; }
+        .consent label { display:flex; gap:10px; align-items:flex-start; cursor:pointer; font-size:14px; line-height:1.5; }
+        .consent input[type=checkbox] { width:20px; height:20px; margin-top:2px; flex-shrink:0; accent-color:var(--maroon); }
+        .err { background:#fde8ea; border:1px solid #f5b5bd; color:#7f1d1d; border-radius:8px; padding:9px 12px; font-size:13px; margin-bottom:12px; }
+        .ok { background:#e8f7ee; border:1px solid #b6e3c6; color:#14532d; border-radius:8px; padding:9px 12px; font-size:13px; margin-bottom:12px; }
+        .btn { display:inline-block; margin-top:14px; width:100%; padding:12px; font-size:14px; font-weight:600; color:#fff; background:var(--maroon); border:0; border-radius:22px; cursor:pointer; text-align:center; text-decoration:none; }
+        .btn:hover:not(:disabled) { background:var(--maroon-dark); }
+        .btn:disabled { background:#c9a2aa; cursor:not-allowed; }
+        .link { color:var(--maroon); font-size:13px; text-decoration:none; }
+        .link:hover { text-decoration:underline; }
+        @media (max-width:600px) { .card { padding:20px 16px; } .body { max-height:46vh; } }
+    </style>
+</head>
+<body>
+    <div class="top">
+        <img src="{% static 'img/logo.png' %}" alt="">
+        <strong>JCAD CodeQuest &middot; Colegio de San Gabriel Arcangel</strong>
+    </div>
+    <div class="page">
+        {% block page %}{% endblock %}
+    </div>
+</body>
+</html>

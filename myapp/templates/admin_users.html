@@ -37,6 +37,7 @@
                     <th class="text-left px-5 py-3">Email</th>
                     <th class="text-left px-5 py-3">Role</th>
                     <th class="text-left px-5 py-3">Status</th>
+                    <th class="text-left px-5 py-3">Terms</th>
                     <th class="text-left px-5 py-3">Joined</th>
                     <th class="text-right px-5 py-3">Actions</th>
                 </tr>
@@ -58,6 +59,9 @@
                         {% else %}
                             <span class="text-slate-400 text-xs font-semibold">Deactivated</span>
                         {% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-xs font-semibold">
+                        {% if u.profile.role == 'STUDENT' %}{% if u.terms_accepted %}<span class="text-emerald-600">Accepted</span>{% else %}<span class="text-amber-600">Pending</span>{% endif %}{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}
                     </td>
                     <td class="px-5 py-3 text-slate-500 text-xs">{{ u.date_joined|date:"M d, Y" }}</td>
                     <td class="px-5 py-3 text-right">

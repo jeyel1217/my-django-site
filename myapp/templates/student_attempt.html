@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-5">
+    <a href="{% url 'student_progress' enrollment.classroom.pk enrollment.student.pk %}" class="text-sm text-slate-500 hover:text-red-700"><i class="fa-solid fa-arrow-left"></i> Back to {{ enrollment.student.profile.display_name }}</a>
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <h2 class="text-xl font-extrabold text-slate-800">{{ quiz.title }}</h2>
+        <p class="text-sm text-slate-500">{{ enrollment.student.profile.display_name }} &middot; {{ enrollment.classroom.name }} &middot; {{ type }}</p>
+        <dl class="grid grid-cols-2 gap-3 text-sm">
+            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">SUBMITTED</dt><dd>{{ attempt.taken_at|date:"M j, Y – g:i:s A" }} <span class="text-xs text-slate-400">(Philippine Time)</span></dd></div>
+            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">STARTED</dt><dd>{% if attempt.started_at %}{{ attempt.started_at|date:"M j, Y – g:i A" }}{% else %}&mdash;{% endif %}</dd></div>
+            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">DEADLINE THAT APPLIED</dt><dd>{% if attempt.effective_deadline %}{{ attempt.effective_deadline|date:"M j, Y – g:i A" }}{% else %}No deadline{% endif %}{% if attempt.is_late %} <strong class="text-red-600">(late)</strong>{% endif %}</dd></div>
+            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">SCORE</dt><dd class="font-bold">{% if attempt.correct_count is not None %}{{ attempt.correct_count }}/{{ attempt.total_questions }} &middot; {% endif %}{{ attempt.score }}%</dd></div>
+            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">GRADING</dt><dd><span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ grading.1 }}">{{ grading.0 }}</span></dd></div>
+        </dl>
+        <p class="text-xs text-slate-400">Question-by-question answers are recorded for quizzes taken after the quiz-types update. Earlier attempts keep only their score and times.</p>
+    </div>
+</div>
+{% endblock %}

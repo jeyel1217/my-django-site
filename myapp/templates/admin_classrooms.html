@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Classrooms</h2>
+        <p class="text-slate-500 text-sm mt-1">Every Mentor's classrooms, their students, and data checks.</p>
+    </div>
+
+    <div class="px-4 py-3 rounded-lg text-sm border {% if problems %}bg-amber-50 border-amber-200 text-amber-800{% else %}bg-emerald-50 border-emerald-200 text-emerald-700{% endif %}">
+        {% if problems %}
+            <p class="font-semibold"><i class="fa-solid fa-triangle-exclamation"></i> Data checks found {{ problems }} item{{ problems|pluralize }} to look at:</p>
+            <ul class="list-disc pl-6 mt-1 text-xs space-y-0.5">
+                {% if checks.non_student_enrolled %}<li>{{ checks.non_student_enrolled }} enrollment(s) belong to a non-student account.</li>{% endif %}
+                {% if checks.inactive_enrolled %}<li>{{ checks.inactive_enrolled }} enrolled student account(s) are deactivated.</li>{% endif %}
+                {% if checks.bad_owner %}<li>{{ checks.bad_owner }} classroom(s) are owned by an account that is not a Mentor or Admin.</li>{% endif %}
+                {% if checks.lessons_unassigned %}<li>{{ checks.lessons_unassigned }} lesson(s) have no classroom (students cannot see them). The Mentor can assign one by editing the lesson.</li>{% endif %}
+                {% if checks.quizzes_unassigned %}<li>{{ checks.quizzes_unassigned }} quiz(zes) have no classroom (students cannot see them). The Mentor can assign one by editing the quiz.</li>{% endif %}
+                {% if checks.quiz_lesson_mismatch %}<li>{{ checks.quiz_lesson_mismatch }} quiz(zes) are linked to a lesson from a different classroom.</li>{% endif %}
+            </ul>
+        {% else %}
+            <i class="fa-solid fa-circle-check"></i> Data checks passed. No duplicate or invalid enrollments (duplicates are blocked by the database).
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Classroom</th>
+                    <th class="text-left px-5 py-3">Mentor</th>
+                    <th class="text-left px-5 py-3">Students</th>
+                    <th class="text-left px-5 py-3">Lessons</th>
+                    <th class="text-left px-5 py-3">Quizzes</th>
+                    <th class="text-left px-5 py-3">Code</th>
+                    <th class="text-right px-5 py-3">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for room in rooms %}
+                <tr>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ room.name }}<span class="block text-xs text-slate-400 font-normal">ID #{{ room.pk }}</span></td>
+                    <td class="px-5 py-3 text-slate-600">{{ room.mentor_name }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ room.student_total }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ room.lesson_total }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ room.quiz_total }}</td>
+                    <td class="px-5 py-3 text-xs font-semibold {% if room.code_enabled %}text-emerald-600{% else %}text-slate-400{% endif %}">{% if room.code_enabled %}On{% else %}Off{% endif %}</td>
+                    <td class="px-5 py-3 text-right"><a href="{% url 'admin_classroom_detail' room.pk %}" class="text-red-700 hover:underline font-semibold">Review</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-slate-400 p-8">No classrooms yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

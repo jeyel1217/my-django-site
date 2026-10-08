@@ -1,0 +1,20 @@
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for room in classrooms %}
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+            <div class="flex items-start justify-between gap-3">
+                <h3 class="text-lg font-extrabold text-slate-800">{{ room.name }}</h3>
+                <span class="text-[10px] font-bold px-2 py-1 rounded {% if room.code_enabled %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+                    {% if room.code_enabled %}CODE ON{% else %}CODE OFF{% endif %}</span>
+            </div>
+            {% if room.description %}<p class="text-xs text-slate-500">{{ room.description }}</p>{% endif %}
+            <p class="mt-3 text-[10px] font-bold text-slate-400 tracking-wider">JOIN CODE</p>
+            <p class="text-xl font-mono font-extrabold tracking-widest text-red-800">{{ room.code }}</p>
+            <p class="mt-3 text-xs text-slate-600">{{ room.student_total }} student{{ room.student_total|pluralize }} &middot; {{ room.lesson_total }} lesson{{ room.lesson_total|pluralize }} &middot; {{ room.quiz_total }} quiz{{ room.quiz_total|pluralize:"zes" }}</p>
+        </div>
+        <a href="{% url 'mentor_classroom_detail' room.pk %}" class="mt-4 text-center bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 transition text-sm">Open Classroom</a>
+    </div>
+    {% empty %}
+    <div class="col-span-full text-center text-slate-400 p-8 bg-white rounded-xl border border-dashed border-slate-300">No classrooms yet.</div>
+    {% endfor %}
+</div>

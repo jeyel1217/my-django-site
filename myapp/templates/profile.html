@@ -7,12 +7,18 @@
              class="w-32 h-32 rounded-full object-cover mx-auto mb-4 border-4 border-red-50">
     {% else %}
         <div class="w-32 h-32 rounded-full bg-red-50 text-red-700 flex items-center justify-center text-4xl font-black mx-auto mb-4">
-            {{ profile.user.username|first|upper }}
+            {{ profile.display_name|first|upper }}
         </div>
     {% endif %}
 
-    <h2 class="text-xl font-extrabold text-slate-800">{{ profile.user.username }}</h2>
+    <h2 class="text-xl font-extrabold text-slate-800">{{ profile.display_name }}</h2>
     <p class="text-slate-500 text-sm mt-2">{{ profile.bio|default:"No bio yet." }}</p>
+
+    <div class="mt-5 space-y-1 text-sm text-slate-600 text-left max-w-xs mx-auto">
+        <p><span class="font-semibold text-slate-500">Name:</span> {{ profile.name|default:"Not added yet" }}</p>
+        <p><span class="font-semibold text-slate-500">Username:</span> {{ profile.user.username }}</p>
+        <p><span class="font-semibold text-slate-500">Gmail:</span> {{ profile.user.email|default:"Not set" }}</p>
+    </div>
 
     <div class="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100 text-sm">
         <div>
@@ -28,6 +34,20 @@
             <div class="text-xs text-slate-400">Avg Score</div>
         </div>
     </div>
+
+    {% if profile.is_student %}
+    <div class="mt-6 text-left max-w-xs mx-auto">
+        <div class="flex justify-between text-xs font-semibold text-slate-500 mb-1">
+            <span>Profile completion</span><span>{{ profile.profile_completion_percent }}%</span>
+        </div>
+        <div class="h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-2 bg-red-700" style="width: {{ profile.profile_completion_percent }}%"></div></div>
+        {% if profile.missing_profile_fields %}
+            <p class="text-xs text-amber-700 mt-2">Still needed: {{ profile.missing_profile_fields|join:", " }}</p>
+        {% else %}
+            <p class="text-xs text-emerald-600 mt-2"><i class="fa-solid fa-circle-check"></i> All required information is filled in.</p>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <a href="{% url 'edit_profile' %}"
        class="inline-block mt-6 bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">

@@ -8,8 +8,36 @@
 
     <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
         <h1 class="text-2xl font-extrabold text-slate-800 mb-1">{{ quiz.title }}</h1>
-        <p class="text-slate-500 text-sm mb-6">{{ quiz.description }}</p>
+        <p class="text-slate-500 text-sm mb-4">{{ quiz.description }}</p>
 
+        {% if quiz.instructions %}
+            <div class="mb-4 px-4 py-3 rounded-lg text-sm bg-slate-50 text-slate-600 border border-slate-200">
+                <p class="text-[10px] font-bold text-slate-400 tracking-wider mb-1">INSTRUCTIONS</p>
+                {{ quiz.instructions|linebreaksbr }}
+            </div>
+        {% endif %}
+
+        {% if eff_deadline %}
+            <div class="mb-6 flex flex-wrap items-center gap-3 text-sm">
+                <span class="text-slate-500">Deadline: <span class="font-semibold {% if past_deadline %}text-orange-600{% else %}text-slate-700{% endif %}">{{ eff_deadline|date:"M j, Y – g:i A" }}</span>{% if state.extended %} <span class="text-xs text-violet-700">(extended for you)</span>{% endif %}</span>
+                <span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ state.css }}">{{ state.label }}</span>
+            </div>
+            {% if closed %}
+                <div class="mb-6 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200" role="alert">
+                    <strong>Submissions are closed.</strong> {{ closed_reason }}
+                    Please contact your mentor if you need more time.
+                </div>
+            {% elif past_deadline %}
+                <div class="mb-6 px-4 py-3 rounded-lg text-sm bg-orange-50 text-orange-700 border border-orange-200">
+                    ⚠ The deadline has passed. Your mentor allows late work, so you can still submit, but it will be marked as late.
+                </div>
+            {% endif %}
+        {% endif %}
+
+        {% if closed and not eff_deadline %}
+            <div class="mb-6 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200" role="alert">{{ closed_reason }}</div>
+        {% endif %}
+{% if not closed %}
         <form method="POST" class="space-y-6">
             {% csrf_token %}
             {% for question in questions %}
@@ -31,6 +59,7 @@
                 Submit Answers
             </button>
         </form>
+{% endif %}
     </div>
 </div>
 {% endblock %}

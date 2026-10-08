@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-xl mx-auto space-y-6">
+    <a href="{% if is_edit %}{% url 'mentor_classroom_detail' room.pk %}{% else %}{% url 'mentor_classrooms' %}{% endif %}" class="text-sm text-slate-500 hover:text-red-700"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-xl font-extrabold text-slate-800 mb-6">{% if is_edit %}Edit Classroom{% else %}New Classroom{% endif %}</h2>
+        <form method="POST" class="space-y-5">
+            {% csrf_token %}
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2" for="id_name">CLASSROOM NAME</label>
+                {{ form.name }}
+                {% if form.name.errors %}<p class="text-xs text-red-600 mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2" for="id_description">DESCRIPTION (optional)</label>
+                {{ form.description }}
+            </div>
+            <button type="submit" class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">{% if is_edit %}Save Changes{% else %}Create Classroom{% endif %}</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

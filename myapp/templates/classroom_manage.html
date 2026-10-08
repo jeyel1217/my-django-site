@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-6">
+    <a href="{% url back_url %}" class="text-sm text-slate-500 hover:text-red-700"><i class="fa-solid fa-arrow-left"></i> {% if is_admin %}All classrooms{% else %}My Classrooms{% endif %}</a>
+
+    <div class="flex items-start justify-between flex-wrap gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">{{ room.name }}</h2>
+            <p class="text-slate-500 text-sm mt-1">Mentor: {{ room.mentor_name }}{% if room.description %} &middot; {{ room.description }}{% endif %}</p>
+            <p class="text-xs text-slate-400">Classroom ID #{{ room.pk }} &middot; created {{ room.created_at|date:"M d, Y" }}</p>
+        </div>
+        {% if not is_admin %}
+        <a href="{% url 'mentor_classroom_edit' room.pk %}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Edit details</a>
+        {% endif %}
+    </div>
+
+    <!-- Join code -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <p class="text-[10px] font-bold text-slate-400 tracking-wider">JOIN CODE</p>
+        <div class="flex items-center flex-wrap gap-3 mt-1">
+            <span id="room-code" class="text-3xl font-mono font-extrabold tracking-widest {% if room.code_enabled %}text-red-800{% else %}text-slate-300 line-through{% endif %}">{{ room.code }}</span>
+            <button type="button" id="copy-code" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50"><i class="fa-regular fa-copy"></i> <span>Copy</span></button>
+            <span class="text-xs font-semibold {% if room.code_enabled %}text-emerald-600{% else %}text-slate-400{% endif %}">{% if room.code_enabled %}Students can join with this code{% else %}Code is switched OFF{% endif %}</span>
+        </div>
+        <p class="text-xs text-slate-400 mt-2">Code last changed {{ room.code_updated_at|date:"M d, Y, P" }} &mdash; give it to your students; they enter it under "Join Classroom".</p>
+        <div class="flex flex-wrap gap-3 mt-4">
+            <form method="POST" action="{% url 'classroom_regenerate_code' room.pk %}" onsubmit="return confirm('Make a new code? The old code will stop working for new students. Students already in the classroom stay.');">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-900"><i class="fa-solid fa-rotate"></i> Generate new code</button>
+            </form>
+            <form method="POST" action="{% url 'classroom_toggle_code' room.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50">{% if room.code_enabled %}Switch code OFF{% else %}Switch code ON{% endif %}</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Students -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-extrabold text-slate-800">Students <span class="text-slate-400 font-semibold text-sm">({{ active_count }} enrolled)</span></h3>
+        </div>
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr><th class="text-left px-5 py-3">Name</th><th class="text-left px-5 py-3">Username</th><th class="text-left px-5 py-3">Joined</th><th class="text-left px-5 py-3">Status</th><th class="text-right px-5 py-3">Action</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for e in enrollments %}
+                <tr class="{% if not e.is_active %}bg-slate-50 text-slate-400{% endif %}">
+                    <td class="px-5 py-3 font-semibold"><a class="hover:underline text-slate-800" href="{% url 'student_progress' room.pk e.student_id %}">{{ e.student.profile.display_name }}</a>{% if e.student.profile.student_id %}<div class="text-xs font-normal text-slate-400">ID {{ e.student.profile.student_id }}</div>{% endif %}</td>
+                    <td class="px-5 py-3">{{ e.student.username }}</td>
+                    <td class="px-5 py-3 text-xs whitespace-nowrap">{{ e.joined_at|date:"M d, Y, P" }}</td>
+                    <td class="px-5 py-3 text-xs font-semibold">{% if e.is_active %}<span class="text-emerald-600">Enrolled</span>{% else %}Removed {{ e.removed_at|date:"M d" }}{% endif %}</td>
+                    <td class="px-5 py-3 text-right">
+                        {% if e.is_active %}
+                        <form method="POST" action="{% url 'classroom_remove_student' room.pk e.student_id %}" class="inline" onsubmit="return confirm('Remove this student from the classroom? Their grades and quiz history are kept.');">
+                            {% csrf_token %}<button type="submit" class="text-red-600 hover:underline font-semibold text-xs">Remove</button>
+                        </form>
+                        {% else %}
+                        <form method="POST" action="{% url 'classroom_restore_student' room.pk e.student_id %}" class="inline">
+                            {% csrf_token %}<button type="submit" class="text-emerald-700 hover:underline font-semibold text-xs">Add back</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-slate-400 p-8">No students yet. Share the code above.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Lessons -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-extrabold text-slate-800">Lessons</h3>
+            {% if not is_admin %}<a href="{% url 'mentor_lesson_create' %}?classroom={{ room.pk }}" class="text-red-700 text-xs font-semibold hover:underline"><i class="fa-solid fa-plus"></i> New lesson</a>{% endif %}
+        </div>
+        <ul class="divide-y divide-slate-100 text-sm">
+            {% for l in lessons %}
+            <li class="px-5 py-3 flex items-center justify-between gap-3">
+                <span><span class="text-slate-400 text-xs mr-2">{{ l.order }}.</span><span class="font-semibold text-slate-800">{{ l.title }}</span></span>
+                <span class="flex items-center gap-3">
+                    <span class="text-xs font-semibold {% if l.is_published %}text-emerald-600{% else %}text-slate-400{% endif %}">{% if l.is_published %}Published{% else %}Draft{% endif %}</span>
+                    {% if not is_admin %}<a href="{% url 'mentor_lesson_edit' l.pk %}" class="text-red-700 text-xs font-semibold hover:underline">Edit</a>{% endif %}
+                </span>
+            </li>
+            {% empty %}<li class="px-5 py-6 text-center text-slate-400">No lessons in this classroom yet.</li>{% endfor %}
+        </ul>
+    </div>
+
+    <!-- Quizzes -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-extrabold text-slate-800">Quizzes &amp; submissions</h3>
+            {% if not is_admin %}<a href="{% url 'mentor_quiz_create' %}?classroom={{ room.pk }}" class="text-red-700 text-xs font-semibold hover:underline"><i class="fa-solid fa-plus"></i> New quiz</a>{% endif %}
+        </div>
+        <ul class="divide-y divide-slate-100 text-sm">
+            {% for item in quiz_items %}
+            <li class="px-5 py-3 flex items-center justify-between flex-wrap gap-2">
+                <span>
+                    <span class="font-semibold text-slate-800">{{ item.quiz.title }}</span>
+                    <span class="block text-xs text-slate-500">
+                        {% if item.quiz.deadline_datetime %}Due {{ item.quiz.deadline_datetime|date:"M j, Y – g:i A" }}{% else %}No deadline{% endif %}
+                        &middot; {{ item.summary.completed }}/{{ item.summary.total }} submitted{% if item.summary.late %}, {{ item.summary.late }} late{% endif %}{% if item.summary.missed %}, {{ item.summary.missed }} overdue{% endif %}
+                    </span>
+                </span>
+                {% if not is_admin %}<a href="{% url 'mentor_exam_progress' item.quiz.pk %}" class="text-red-700 text-xs font-semibold hover:underline">View progress &amp; grades</a>{% endif %}
+            </li>
+            {% empty %}<li class="px-5 py-6 text-center text-slate-400">No quizzes in this classroom yet.</li>{% endfor %}
+        </ul>
+    </div>
+</div>
+<script>
+(function () {
+    var btn = document.getElementById("copy-code"), code = document.getElementById("room-code");
+    if (!btn) { return; }
+    btn.addEventListener("click", function () {
+        var label = btn.querySelector("span");
+        function done() { label.textContent = "Copied!"; setTimeout(function () { label.textContent = "Copy"; }, 1500); }
+        if (navigator.clipboard) { navigator.clipboard.writeText(code.textContent.trim()).then(done); }
+        else { var r = document.createRange(); r.selectNode(code); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); try { document.execCommand("copy"); done(); } catch (e) {} }
+    });
+})();
+</script>
+{% endblock %}

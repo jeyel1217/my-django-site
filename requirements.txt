@@ -1,5 +1,6 @@
-asgiref==3.12.1
-Django==5.2.17
+asgiref==3.11.1
+Django==6.0.6
 pillow==12.3.0
+python-dotenv==1.2.3
 sqlparse==0.5.5
-typing_extensions==4.16.0
+tzdata==2026.2

@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-6">
+    <a href="{% url 'staff_students' %}" class="text-sm text-slate-500 hover:text-red-700"><i class="fa-solid fa-arrow-left"></i> Back to Students</a>
+
+    <!-- Student information -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-5 sm:items-center justify-between">
+        <div class="flex items-center gap-4">
+            {% if r.student.profile.avatar and not r.student.profile.avatar_flagged %}<img src="{{ r.student.profile.avatar.url }}" alt="Photo of {{ r.student.profile.display_name }}" class="flex-shrink-0 w-20 h-20 rounded-full object-cover border border-slate-200">
+            {% else %}<span class="flex-shrink-0 w-20 h-20 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-2xl font-bold" aria-hidden="true">{{ r.student.profile.display_name|slice:":1"|upper }}</span>{% endif %}
+            <div class="min-w-0">
+                <h2 class="text-2xl font-extrabold text-slate-800 break-words">{{ r.student.profile.display_name }}</h2>
+                <p class="text-sm text-slate-500">@{{ r.student.username }} &middot; Student ID: {{ r.student.profile.student_id|default:"not provided" }}</p>
+                <p class="text-sm text-slate-500">Classroom: <strong class="text-slate-700">{{ r.classroom.name }}</strong> &middot; Mentor: <strong class="text-slate-700">{{ r.classroom.mentor_name }}</strong>
+                    {% if not enrollment.is_active %}<span class="ml-1 text-xs font-semibold text-slate-500">(removed from classroom {{ enrollment.removed_at|date:"M j, Y" }}; records kept)</span>{% endif %}</p>
+            </div>
+        </div>
+        <a href="{% url 'student_report' r.classroom.pk r.student.pk %}?print=1" target="_blank" rel="noopener"
+           class="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 text-sm text-center whitespace-nowrap"><i class="fa-solid fa-print"></i> Print Progress Report</a>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">LESSONS COMPLETED</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ r.lessons_done }} <span class="text-base text-slate-400">/ {{ r.lessons_total }}</span></p>
+            {% if r.lessons_pct is not None %}<div class="h-2 bg-slate-100 rounded mt-2" role="progressbar" aria-valuenow="{{ r.lessons_pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Lessons completed"><div class="h-2 bg-emerald-500 rounded" style="width: {{ r.lessons_pct }}%"></div></div>{% else %}<p class="text-xs text-slate-400 mt-2">No lessons yet</p>{% endif %}
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">QUIZZES SUBMITTED</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ r.quizzes_submitted }} <span class="text-base text-slate-400">/ {{ r.quizzes_total }}</span></p>
+            {% if r.quizzes_pct is not None %}<div class="h-2 bg-slate-100 rounded mt-2" role="progressbar" aria-valuenow="{{ r.quizzes_pct }}" aria-valuemin="0" aria-valuemax="100" aria-label="Quizzes submitted"><div class="h-2 bg-sky-500 rounded" style="width: {{ r.quizzes_pct }}%"></div></div>{% else %}<p class="text-xs text-slate-400 mt-2">No quizzes yet</p>{% endif %}
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">AVERAGE QUIZ SCORE</p>
+            {% if r.average is not None %}<p class="text-2xl font-extrabold text-slate-800 mt-1">{{ r.average }}%</p>
+            <p class="text-xs text-slate-400 mt-2">of {{ r.finalized_count }} finalized quiz{{ r.finalized_count|pluralize:"zes" }}</p>
+            {% else %}<p class="text-2xl font-extrabold text-slate-400 mt-1">&mdash;</p><p class="text-xs text-slate-400 mt-2">No finalized scores yet</p>{% endif %}
+            {% if r.pending_count %}<p class="text-xs text-amber-700 mt-1">{{ r.pending_count }} pending grading</p>{% endif %}
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">OUTSTANDING QUIZZES</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ r.quizzes_missing }}</p>
+            <p class="text-xs text-slate-400 mt-2">not yet submitted</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl border {% if r.overdue %}border-orange-300{% else %}border-slate-200{% endif %} shadow-sm col-span-2 lg:col-span-1">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">OVERDUE QUIZZES</p>
+            <p class="text-2xl font-extrabold {% if r.overdue %}text-orange-600{% else %}text-slate-800{% endif %} mt-1">{% if r.overdue %}&#9888; {% endif %}{{ r.overdue }}</p>
+            <p class="text-xs text-slate-400 mt-2">deadline passed, not submitted</p>
+        </div>
+    </div>
+    <p class="text-xs text-slate-400 -mt-3">Unsubmitted quizzes are not counted as zero. The average uses the best finalized score for each quiz the student has submitted.</p>
+
+    <!-- Quiz performance table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <caption class="text-left px-5 pt-4 pb-1 text-xs font-bold text-slate-400 tracking-wider">QUIZ PERFORMANCE &middot; {{ r.classroom.name|upper }}</caption>
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-4 py-3">Quiz</th><th class="text-left px-4 py-3">Type</th>
+                    <th class="text-left px-4 py-3">Assigned</th><th class="text-left px-4 py-3">Due</th>
+                    <th class="text-left px-4 py-3">Submitted</th><th class="text-left px-4 py-3">Score</th>
+                    <th class="text-left px-4 py-3">%</th><th class="text-left px-4 py-3">Status</th>
+                    <th class="text-left px-4 py-3">Grading</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in r.rows %}
+                <tr>
+                    <td class="px-4 py-3 font-semibold text-slate-800 break-words">{{ row.quiz.title }}</td>
+                    <td class="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{{ row.type }}</td>
+                    <td class="px-4 py-3 text-xs whitespace-nowrap text-slate-500">{% if row.assigned %}{{ row.assigned|date:"M j, Y" }}{% else %}&mdash;{% endif %}</td>
+                    <td class="px-4 py-3 text-xs whitespace-nowrap">{% if row.due %}{{ row.due|date:"M j, Y – g:i A" }}{% if row.extended %}<div class="text-violet-700">extended</div>{% endif %}{% else %}<span class="text-slate-400">No deadline</span>{% endif %}</td>
+                    <td class="px-4 py-3 text-xs whitespace-nowrap">{% if row.submitted_at %}{{ row.submitted_at|date:"M j, Y – g:i A" }}{% else %}&mdash;{% endif %}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        {% if row.best %}
+                            {% if row.earned is not None %}{{ row.earned }}/{{ row.maximum }}{% else %}<span class="text-slate-400" title="Recorded before raw scores were kept">n/a</span>{% endif %}
+                            {% if row.attempt_count > 1 %}<div class="text-xs text-slate-400">best of {{ row.attempt_count }}</div>{% endif %}
+                        {% else %}&mdash;{% endif %}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap font-semibold">{% if row.percentage is not None %}{{ row.percentage }}%{% else %}&mdash;{% endif %}</td>
+                    <td class="px-4 py-3 whitespace-nowrap"><span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ row.state.css }}">{{ row.state.label }}</span></td>
+                    <td class="px-4 py-3 whitespace-nowrap">
+                        <span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ row.grading_label.1 }}">{{ row.grading_label.0 }}</span>
+                        {% if row.best %}<div><a class="text-xs text-red-700 hover:underline font-semibold" href="{% url 'student_attempt' r.classroom.pk r.student.pk row.best.pk %}">View attempt</a></div>{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-slate-400 p-10">No quizzes have been assigned in this classroom yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Performance over time -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="font-extrabold text-slate-800 mb-1">Quiz scores over time</h3>
+        <p class="text-xs text-slate-500 mb-3">Best finalized score for each submitted quiz, in the order the student first submitted them.</p>
+        {% with c=r.chart %}
+        {% if c.count == 0 %}
+            <p class="text-sm text-slate-400 py-6 text-center">No finalized quiz scores yet.</p>
+        {% else %}
+            {% if not c.enough %}<p class="text-xs text-amber-700 mb-2">Only {{ c.count }} finalized quiz{{ c.count|pluralize:"zes" }} so far. A trend needs at least 3, so no line is drawn.</p>{% endif %}
+            <div class="overflow-x-auto">
+            <svg viewBox="0 0 {{ c.W }} {{ c.H }}" class="w-full h-auto" style="min-width: 480px" role="img" aria-label="Line chart of quiz percentage scores over time">
+                {% for g in c.grid %}<line x1="{{ c.L }}" x2="{{ c.W|add:'-20' }}" y1="{{ g.y }}" y2="{{ g.y }}" stroke="#e2e8f0"/><text x="{{ c.L|add:'-8' }}" y="{{ g.y }}" text-anchor="end" dominant-baseline="middle" font-size="12" fill="#64748b">{{ g.v }}%</text>{% endfor %}
+                {% if c.enough %}<polyline points="{{ c.path }}" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/>{% endif %}
+                {% for p in c.points %}
+                    <circle cx="{{ p.x }}" cy="{{ p.y }}" r="5" fill="#b91c1c"><title>{{ p.title }}: {{ p.pct }}%</title></circle>
+                    <text x="{{ p.x }}" y="{{ p.y|add:'-10' }}" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">{{ p.pct }}%</text>
+                    <text transform="translate({{ p.x }},{{ c.H|add:'-52' }}) rotate(35)" font-size="11" fill="#64748b">{{ p.label }}</text>
+                {% endfor %}
+            </svg>
+            </div>
+        {% endif %}
+        {% endwith %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-4">
+    <h2 class="text-2xl font-extrabold text-slate-800">Notifications</h2>
+    <p class="text-sm text-slate-500">Reminders, overdue quizzes, warnings and account notices. Times are Philippine Time.</p>
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+        {% for n in notes %}
+        <div class="px-5 py-4 {% if n.was_unread %}bg-amber-50/50{% endif %}">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="font-semibold text-slate-800 text-sm">{{ n.subject }}</p>
+                <span class="text-xs text-slate-400">{{ n.created_at|date:"M j, Y – g:i A" }}</span>
+            </div>
+            <p class="text-sm text-slate-600 mt-1">{{ n.message|linebreaksbr }}</p>
+            <p class="text-[11px] text-slate-400 mt-2">{{ n.get_kind_display }} &middot; E-mail: {{ n.get_email_status_display }}</p>
+        </div>
+        {% empty %}
+        <p class="text-center text-slate-400 p-10">No notifications yet.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="space-y-8">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">Deadlines &amp; Warnings</h2>
+            <p class="text-sm text-slate-500">Overdue quizzes, final warnings, deactivations and notification delivery. Times are Philippine Time.</p>
+        </div>
+        <form method="POST" action="{% url 'admin_run_policy' %}">{% csrf_token %}
+            <button class="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 text-sm">Run the check now</button></form>
+    </div>
+
+    <section class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="font-extrabold text-slate-800 mb-1">Policy settings</h3>
+        <p class="text-xs text-slate-500 mb-4">Automatic deactivation stays <strong>off</strong> until an administrator approves it here. While off, a warned student who does not act is sent to you for review instead.</p>
+        <form method="POST" action="{% url 'admin_policy_save' %}" class="grid md:grid-cols-2 gap-4">
+            {% csrf_token %}
+            {% for f in policy_form %}
+            <div class="{% if f.field.widget.input_type == 'checkbox' %}flex items-center gap-2{% endif %}">
+                {% if f.field.widget.input_type == 'checkbox' %}{{ f }}<label class="text-sm text-slate-700">{{ f.label }}</label>
+                {% else %}<label class="text-slate-500 text-xs font-semibold block mb-1">{{ f.label|upper }}</label>{{ f }}{% endif %}
+                {% if f.help_text %}<p class="text-[11px] text-slate-400 mt-1">{{ f.help_text }}</p>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="md:col-span-2"><button class="bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-sm">Save policy</button>
+                {% if policy.auto_deactivation_approved %}<span class="text-xs text-emerald-700 ml-3">Auto-deactivation ON{% if policy.approved_by %} (approved by {{ policy.approved_by.username }}){% endif %}</span>{% endif %}</div>
+        </form>
+    </section>
+
+    <section>
+        <h3 class="font-extrabold text-slate-800 mb-2">Final-warning cases needing attention</h3>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+            {% for w in open_warnings %}
+            <div class="px-5 py-4">
+                <div class="flex flex-wrap justify-between gap-2">
+                    <p class="font-semibold text-slate-800 text-sm"><a class="hover:underline" href="{% url 'admin_user_detail' w.student.id %}">{{ w.student.profile.display_name }}</a> &middot; {{ w.get_status_display }}</p>
+                    <span class="text-xs text-slate-400">Issued {{ w.issued_at|date:"M j, Y – g:i A" }}{% if w.expires_at %} &middot; window ends {{ w.expires_at|date:"M j, Y – g:i A" }}{% endif %}</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Quizzes: {% for q in w.quizzes.all %}{{ q.title }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+                <form method="POST" action="{% url 'admin_warning_action' w.pk %}" class="flex flex-wrap gap-2 mt-3">
+                    {% csrf_token %}
+                    <input name="note" maxlength="300" placeholder="Note (optional)" class="flex-1 min-w-[180px] px-3 py-1.5 border border-slate-300 rounded-lg text-sm">
+                    <button name="action" value="deactivate" class="px-3 py-1.5 rounded-lg bg-red-700 text-white text-xs font-semibold">Deactivate</button>
+                    <button name="action" value="resolve" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold">Close, no deactivation</button>
+                    <button name="action" value="reset" class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold">Reset</button>
+                </form>
+            </div>
+            {% empty %}<p class="text-center text-slate-400 p-8">No open cases.</p>{% endfor %}
+        </div>
+    </section>
+
+    <section>
+        <h3 class="font-extrabold text-slate-800 mb-2">Students with overdue quizzes</h3>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+            {% for v in violations %}
+            <div class="px-5 py-3 text-sm"><a class="font-semibold text-slate-800 hover:underline" href="{% url 'admin_user_detail' v.user.id %}">{{ v.user.profile.display_name }}</a>
+                &middot; {{ v.count }} overdue{% if v.warned %} <span class="text-red-600 text-xs font-semibold">&middot; warned</span>{% endif %}
+                <div class="text-xs text-slate-500">{% for i in v.items %}{{ i.quiz.title }} (due {{ i.deadline|date:"M j, g:i A" }}){% if not forloop.last %}; {% endif %}{% endfor %}</div></div>
+            {% empty %}<p class="text-center text-slate-400 p-8">No overdue quizzes.</p>{% endfor %}
+        </div>
+    </section>
+
+    <section class="grid md:grid-cols-2 gap-6">
+        <div><h3 class="font-extrabold text-slate-800 mb-2">Deactivated accounts</h3>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+                {% for p in inactive %}<div class="px-5 py-3 text-sm flex justify-between"><a class="hover:underline" href="{% url 'admin_user_detail' p.user.id %}">{{ p.display_name }}</a><span class="text-xs text-slate-400">{{ p.deactivated_at|date:"M j, Y" }}</span></div>
+                {% empty %}<p class="text-center text-slate-400 p-6 text-sm">None.</p>{% endfor %}</div></div>
+        <div><h3 class="font-extrabold text-slate-800 mb-2">Flagged profile photos</h3>
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+                {% for p in flagged_photos %}<div class="px-5 py-3 text-sm flex justify-between"><a class="hover:underline" href="{% url 'admin_user_detail' p.user.id %}">{{ p.display_name }}</a><span class="text-xs text-slate-400">{{ p.avatar_flag_reason }}</span></div>
+                {% empty %}<p class="text-center text-slate-400 p-6 text-sm">None.</p>{% endfor %}</div></div>
+    </section>
+
+    <section>
+        <h3 class="font-extrabold text-slate-800 mb-1">Notification history</h3>
+        <p class="text-xs text-slate-500 mb-2">E-mail results are real: sent {{ note_counts.sent }} &middot; failed {{ note_counts.failed }} (retried automatically, up to 3 times) &middot; no address {{ note_counts.no_email }}.</p>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <table class="w-full text-sm"><thead class="bg-slate-50 text-slate-500 text-xs uppercase"><tr><th class="text-left px-4 py-2">When</th><th class="text-left px-4 py-2">Student</th><th class="text-left px-4 py-2">Type</th><th class="text-left px-4 py-2">E-mail</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+            {% for n in notes %}<tr><td class="px-4 py-2 text-xs whitespace-nowrap">{{ n.created_at|date:"M j, g:i A" }}</td><td class="px-4 py-2">{{ n.user.username }}</td><td class="px-4 py-2">{{ n.get_kind_display }}</td><td class="px-4 py-2 text-xs">{{ n.get_email_status_display }}</td></tr>
+            {% empty %}<tr><td colspan="4" class="text-center text-slate-400 p-6">Nothing yet.</td></tr>{% endfor %}</tbody></table>
+        </div>
+    </section>
+
+    <section>
+        <h3 class="font-extrabold text-slate-800 mb-2">Recent account changes</h3>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+            {% for l in status_log %}<div class="px-5 py-2 text-xs text-slate-600">{{ l.created_at|date:"M j, Y, g:i A" }} &middot; {{ l.user.profile.display_name }} &middot; {{ l.action }} &middot; by {% if l.actor %}{{ l.actor.username }}{% else %}system{% endif %}{% if l.reason %} &mdash; {{ l.reason }}{% endif %}</div>
+            {% empty %}<p class="text-center text-slate-400 p-6 text-sm">None.</p>{% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

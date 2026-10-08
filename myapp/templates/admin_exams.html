@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h2 class="text-2xl font-extrabold text-slate-800">Exam Monitoring</h2>
+            <p class="text-slate-500 text-sm mt-1">Exam activity across the whole system.</p>
+        </div>
+        <form method="GET" class="flex items-center gap-2">
+            <label class="text-xs font-semibold text-slate-500" for="mentor-filter">MENTOR</label>
+            <select id="mentor-filter" name="mentor" class="border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">All mentors</option>
+                {% for m in mentors %}
+                    <option value="{{ m.pk }}" {% if selected_mentor == m.pk %}selected{% endif %}>{{ m.profile.display_name }} (@{{ m.username }})</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-900">Filter</button>
+        </form>
+    </div>
+
+    <!-- Exams -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <caption class="text-left px-5 pt-4 pb-1 text-xs font-bold text-slate-400 tracking-wider">EXAMS</caption>
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Exam</th>
+                    <th class="text-left px-5 py-3">Mentor</th>
+                    <th class="text-left px-5 py-3">Deadline</th>
+                    <th class="text-left px-5 py-3">Students</th>
+                    <th class="text-left px-5 py-3">&#10003; Completed</th>
+                    <th class="text-left px-5 py-3">&#10003; On Time</th>
+                    <th class="text-left px-5 py-3">&#9888; Late</th>
+                    <th class="text-left px-5 py-3">&#9675; Not Taken</th>
+                    <th class="text-right px-5 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for item in items %}
+                <tr>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ item.quiz.title }}
+                        {% if not item.quiz.is_published %}<span class="text-xs font-normal text-slate-400">(draft)</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-600">
+                        {% if item.quiz.created_by %}{{ item.quiz.created_by.profile.display_name }}{% else %}<span class="text-slate-400">&mdash;</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-xs text-slate-600 whitespace-nowrap">
+                        {% if item.quiz.deadline_datetime %}{{ item.quiz.deadline_datetime|date:"M j, Y – g:i A" }}{% else %}<span class="text-slate-400">No deadline</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-slate-700">{{ item.summary.total }}</td>
+                    <td class="px-5 py-3 font-semibold text-sky-700">{{ item.summary.completed }}</td>
+                    <td class="px-5 py-3 font-semibold text-emerald-600">{{ item.summary.on_time }}</td>
+                    <td class="px-5 py-3 font-semibold text-red-600">{{ item.summary.late }}</td>
+                    <td class="px-5 py-3 font-semibold text-slate-600">{{ item.summary.not_taken }}
+                        {% if item.summary.missed %}<span class="text-xs font-semibold text-orange-600">({{ item.summary.missed }} missed)</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-right whitespace-nowrap">
+                        <a href="{% url 'admin_exam_detail' item.quiz.pk %}" class="text-red-700 hover:underline font-semibold">View students</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center text-slate-400 p-10">No exams found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Every submission -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <caption class="text-left px-5 pt-4 pb-1 text-xs font-bold text-slate-400 tracking-wider">RECENT SUBMISSIONS &middot; NEWEST FIRST</caption>
+            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                <tr>
+                    <th class="text-left px-5 py-3">Mentor</th>
+                    <th class="text-left px-5 py-3">Exam</th>
+                    <th class="text-left px-5 py-3">Student</th>
+                    <th class="text-left px-5 py-3">Score</th>
+                    <th class="text-left px-5 py-3">Submitted</th>
+                    <th class="text-left px-5 py-3">Deadline</th>
+                    <th class="text-left px-5 py-3">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for r in log %}
+                <tr>
+                    <td class="px-5 py-3 text-slate-600">{{ r.mentor }}</td>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ r.attempt.quiz.title }}</td>
+                    <td class="px-5 py-3">
+                        <div class="text-slate-800">{{ r.student }}</div>
+                        <div class="text-xs text-slate-400">@{{ r.username }}</div>
+                    </td>
+                    <td class="px-5 py-3 text-slate-700 whitespace-nowrap">
+                        {% if r.attempt.correct_count is not None %}{{ r.attempt.correct_count }}/{{ r.attempt.total_questions }} &middot; {% endif %}{{ r.attempt.score }}%
+                    </td>
+                    <td class="px-5 py-3 text-xs whitespace-nowrap {{ r.submitted_css }}">
+                        {{ r.attempt.taken_at|date:"M j, Y – g:i A" }}
+                        {% if r.late_text %}<div class="font-normal">{{ r.late_text }}</div>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 text-xs text-slate-600 whitespace-nowrap">
+                        {% if r.attempt.quiz.deadline_datetime %}{{ r.attempt.quiz.deadline_datetime|date:"M j, Y – g:i A" }}{% else %}<span class="text-slate-400">No deadline</span>{% endif %}
+                    </td>
+                    <td class="px-5 py-3 whitespace-nowrap">
+                        <span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ r.status_css }}">{{ r.status_label }}</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-slate-400 p-10">No submissions yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="text-xs text-slate-400">Times are Philippine Time. Each row above is one submission, judged against that quiz's deadline.</p>
+</div>
+{% endblock %}

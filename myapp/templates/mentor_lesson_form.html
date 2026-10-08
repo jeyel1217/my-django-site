@@ -15,6 +15,13 @@
             {% csrf_token %}
 
             <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2" for="id_classroom">CLASSROOM</label>
+                {{ form.classroom }}
+                {% if form.classroom.errors %}<p class="text-xs text-red-600 mt-1">{{ form.classroom.errors|join:", " }}</p>{% endif %}
+                <p class="text-xs text-slate-400 mt-1">Only students in this classroom will see it.</p>
+            </div>
+
+            <div>
                 <label class="text-slate-500 text-xs font-semibold block mb-2">TITLE</label>
                 {{ form.title }}
                 {% if form.title.errors %}<p class="text-xs text-red-600 mt-1">{{ form.title.errors|join:", " }}</p>{% endif %}

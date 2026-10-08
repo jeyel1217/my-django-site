@@ -5,29 +5,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LEARNING SYSTEM</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+    <style>
+      /* Sidebar layout lives here (not in the Tailwind file) so it can never be broken by a stale or cached stylesheet. */
+      #sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; width: 16rem; transform: translateX(-100%); transition: transform .2s; overflow-y: auto; }
+      #sidebar.open { transform: translateX(0); }
+      #sidebar-backdrop { display: none; position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.5); }
+      #sidebar-backdrop.open { display: block; }
+      #menu-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+      @media (min-width: 768px) {
+        #sidebar { position: static; transform: none; z-index: auto; }
+        #sidebar-backdrop, #sidebar-backdrop.open { display: none; }
+        #menu-btn { display: none; }
+      }
+
+      /* Menu toggle: the three-line button makes the items slide in / out one by one. */
+      #nav-toggle { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; margin: -.25rem 0 -.25rem -.5rem;
+                    border: 0; border-radius: .6rem; background: transparent; color: inherit; font-size: 1.4rem; cursor: pointer; transition: background .2s; }
+      #nav-toggle:hover { background: rgba(255,255,255,.12); }
+      #nav-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+      #nav-toggle i { transition: transform .35s; }
+      #sidebar.collapsed #nav-toggle i { transform: rotate(90deg); }
+      #sidebar nav a { max-height: 3.5rem; overflow: hidden; white-space: nowrap; opacity: 1; transform: translateX(0);
+                       transition: opacity .28s ease, transform .28s ease, max-height .28s ease, padding .28s ease, margin .28s ease, background .15s;
+                       transition-delay: var(--in, 0ms); }
+      #sidebar nav a:hover { transform: translateX(3px); }
+      #sidebar.collapsed nav a { max-height: 0; padding-top: 0; padding-bottom: 0; margin-top: 0; opacity: 0; transform: translateX(-18px);
+                                 pointer-events: none; transition-delay: var(--out, 0ms); }
+      @media (prefers-reduced-motion: reduce) {
+        #sidebar nav a, #nav-toggle i { transition: none !important; }
+      }
+    </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-slate-50 font-sans flex h-screen overflow-hidden">
 
+    <!-- Phones: the sidebar slides in over the page; tablets and desktops keep it open. -->
+    <div id="sidebar-backdrop"></div>
+
     <!-- Sidebar -->
-    <aside class="w-64 bg-red-800 text-white flex flex-col justify-between flex-shrink-0">
+    <aside id="sidebar" class="bg-red-800 text-white flex flex-col justify-between flex-shrink-0">
         <div>
             <div class="p-6 flex items-center gap-3 border-b border-red-700">
-                <span class="text-2xl"><i class="fa-solid fa-bars"></i></span>
+                <button id="nav-toggle" type="button" aria-controls="sidebar-nav" aria-expanded="true" aria-label="Hide menu items"><i class="fa-solid fa-bars"></i></button>
                 <span class="font-bold tracking-wider text-sm">LEARNING SYSTEM</span>
             </div>
-            <nav class="p-4 space-y-1">
+            <nav id="sidebar-nav" class="p-4 space-y-1">
 
                 {% if request.user.profile.role == 'STUDENT' %}
                     <a href="{% url 'home' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'student_dashboard' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm font-semibold text-red-100">
                         <i class="fa-solid fa-house w-5 text-center"></i> Dashboard
+                    </a>
+                    <a href="{% url 'classroom_join' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'classroom_join' or request.resolver_match.url_name == 'classroom_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-door-open w-5 text-center"></i> Join Classroom
                     </a>
                     <a href="{% url 'lessons' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'lessons' or request.resolver_match.url_name == 'lesson_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-book-open w-5 text-center"></i> Lessons
                     </a>
                     <a href="{% url 'quizzes' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'quizzes' or request.resolver_match.url_name == 'quiz_detail' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Quizzes
+                    </a>
+                    <a href="{% url 'notifications' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'notifications' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-bell w-5 text-center"></i> Notifications
+                        {% if unread_notifications %}<span class="ml-auto bg-white text-red-700 text-[11px] font-bold rounded-full px-2 py-0.5">{{ unread_notifications }}</span>{% endif %}
                     </a>
                     <a href="{% url 'badges' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'badges' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-trophy w-5 text-center"></i> Badges
@@ -40,11 +80,20 @@
                     <a href="{% url 'home' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'mentor_dashboard' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm font-semibold text-red-100">
                         <i class="fa-solid fa-house w-5 text-center"></i> Dashboard
                     </a>
+                    <a href="{% url 'mentor_classrooms' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_classroom' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-chalkboard w-5 text-center"></i> My Classrooms
+                    </a>
                     <a href="{% url 'mentor_lessons' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_lesson' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-book-open w-5 text-center"></i> Manage Lessons
                     </a>
                     <a href="{% url 'mentor_quizzes' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_quiz' in request.resolver_match.url_name or 'mentor_question' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Manage Quizzes
+                    </a>
+                    <a href="{% url 'staff_students' %}" class="flex items-center gap-4 px-4 py-3 {% if 'staff_students' in request.resolver_match.url_name or 'student_' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-user-graduate w-5 text-center"></i> My Students
+                    </a>
+                    <a href="{% url 'mentor_progress_overview' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'mentor_progress_overview' or request.resolver_match.url_name == 'mentor_exam_progress' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-chart-column w-5 text-center"></i> Student Progress
                     </a>
                     <a href="{% url 'profile' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'profile' or request.resolver_match.url_name == 'edit_profile' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-user w-5 text-center"></i> My Profile
@@ -60,6 +109,18 @@
                     <a href="{% url 'admin_mentor_create' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'admin_mentor_create' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-user-plus w-5 text-center"></i> Create Mentor
                     </a>
+ <a href="{% url 'staff_students' %}" class="flex items-center gap-4 px-4 py-3 {% if 'staff_students' in request.resolver_match.url_name or 'student_' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-user-graduate w-5 text-center"></i> Students
+                    </a>
+                    <a href="{% url 'admin_monitoring' %}" class="flex items-center gap-4 px-4 py-3 {% if 'monitoring' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-triangle-exclamation w-5 text-center"></i> Deadlines &amp; Warnings
+                    </a>
+                    <a href="{% url 'admin_classroom_list' %}" class="flex items-center gap-4 px-4 py-3 {% if 'classroom' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-chalkboard w-5 text-center"></i> Classrooms
+                    </a>
+                    <a href="{% url 'admin_terms_list' %}" class="flex items-center gap-4 px-4 py-3 {% if 'admin_terms' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-file-signature w-5 text-center"></i> Terms &amp; Consent
+                    </a>
                     <a href="{% url 'profile' %}" class="flex items-center gap-4 px-4 py-3 {% if request.resolver_match.url_name == 'profile' or request.resolver_match.url_name == 'edit_profile' %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-user w-5 text-center"></i> My Profile
                     </a>
@@ -67,20 +128,48 @@
 
             </nav>
         </div>
+        <!-- Footer button group. Logout must always stay the LAST button here;
+             anything new goes ABOVE it. -->
         <div class="p-4 border-t border-red-700">
-            <a href="{% url 'logout' %}" class="flex items-center gap-4 px-4 py-3 hover:bg-red-900 rounded-xl text-sm font-semibold text-red-100">
+            <a href="{% url 'logout' %}" class="flex items-center gap-4 px-4 py-3 bg-red-900/60 hover:bg-red-950 rounded-xl text-sm font-semibold text-red-100">
                 <i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Logout
             </a>
         </div>
     </aside>
 
     <!-- Content Area -->
-    <div class="flex-1 flex flex-col overflow-hidden">
-        <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-8">
-            <div class="font-bold text-slate-800 text-sm">Welcome, {{ request.user.username }}</div>
+    <div class="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <header class="bg-white border-b border-slate-200 h-16 flex items-center gap-3 px-4 md:px-8">
+            <button id="menu-btn" type="button" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false" class="w-10 h-10 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100"><i class="fa-solid fa-bars"></i><span class="sr-only">Menu</span></button>
+            <div class="font-bold text-slate-800 text-sm truncate">Welcome, {{ request.user.profile.display_name|default:request.user.username }}!</div>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-8">
+        <main class="flex-1 overflow-y-auto p-4 md:p-8">
+            {% if notice_photo_flagged %}
+                <div class="mb-4 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-800 border border-red-300 flex flex-wrap items-center justify-between gap-3" role="alert">
+                    <span>
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <strong>Please replace your profile photo.</strong>
+                        {% if notice_photo_reason %}Reason: {{ notice_photo_reason }}{% else %}It must be a genuine, appropriate photo of you.{% endif %}
+                    </span>
+                    {% if request.resolver_match.url_name != 'edit_profile' %}
+                    <a href="{% url 'edit_profile' %}" class="px-4 py-1.5 rounded-lg bg-red-700 text-white text-xs font-semibold hover:bg-red-800">Upload a new photo</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% if notice_missing_fields and not notice_photo_flagged %}
+                <div class="mb-4 px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800 border border-amber-200 flex flex-wrap items-center justify-between gap-3" role="status">
+                    <span>
+                        <i class="fa-solid fa-user-pen"></i>
+                        <strong>Your profile is incomplete.</strong>
+                        Still needed: {{ notice_missing_fields|join:", " }}.
+                    </span>
+                    {% if request.resolver_match.url_name != 'edit_profile' %}
+                    <a href="{% url 'edit_profile' %}" class="px-4 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700">Complete my profile</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+
             {% if messages %}
                 <div class="mb-4 space-y-2">
                     {% for message in messages %}
@@ -97,5 +186,29 @@
             {% endblock %}
         </main>
     </div>
+<script>
+(function () {
+  var sb = document.getElementById('sidebar'), bd = document.getElementById('sidebar-backdrop'), btn = document.getElementById('menu-btn');
+  if (!sb || !btn) return;
+  function set(open) {
+    sb.classList.toggle('open', open); bd.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  btn.addEventListener('click', function () { set(!sb.classList.contains('open')); });
+  // Three-line button inside the sidebar: items appear / vanish one by one.
+  var tg = document.getElementById('nav-toggle'), items = sb.querySelectorAll('nav a'), STEP = 55;
+  items.forEach(function (a, i) {
+    a.style.setProperty('--in', (i * STEP) + 'ms');                       // top item first when showing
+    a.style.setProperty('--out', ((items.length - 1 - i) * STEP) + 'ms'); // bottom item first when hiding
+  });
+  function setItems(show) {
+    sb.classList.toggle('collapsed', !show);
+    tg.setAttribute('aria-expanded', show ? 'true' : 'false');
+    tg.setAttribute('aria-label', show ? 'Hide menu items' : 'Show menu items');
+  }
+  // Every page starts with the menu open, so nobody gets lost after clicking a link.
+  tg.addEventListener('click', function () { setItems(sb.classList.contains('collapsed')); });
+})();
+</script>
 </body>
 </html>

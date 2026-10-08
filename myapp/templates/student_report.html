@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progress Report - {{ r.student.profile.display_name }}</title>
+<style>
+  @page { size: A4; margin: 18mm 15mm 20mm; @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9pt; color: #444; } }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, Helvetica, sans-serif; font-size: 11pt; color: #111; margin: 0; line-height: 1.4; background: #fff; }
+  .sheet { max-width: 190mm; margin: 0 auto; padding: 10mm 0; }
+  .toolbar { position: sticky; top: 0; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 10px 16px; display: flex; gap: 10px; align-items: center; font-size: 13px; }
+  .toolbar button, .toolbar a { background: #8b1126; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 600; cursor: pointer; text-decoration: none; font-size: 13px; }
+  .toolbar a.plain { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
+  header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 12px; }
+  header .school { font-size: 12pt; font-weight: 700; letter-spacing: .5px; }
+  header h1 { font-size: 17pt; margin: 4px 0 0; }
+  table { width: 100%; border-collapse: collapse; }
+  .info td { padding: 3px 6px; vertical-align: top; }
+  .info td.k { width: 28%; font-weight: 700; color: #333; }
+  h2 { font-size: 12pt; margin: 16px 0 6px; border-bottom: 1px solid #888; padding-bottom: 2px; break-after: avoid; }
+  .sum { margin-bottom: 4px; } .sum td { border: 1px solid #555; padding: 6px 8px; } .sum td.k { background: #eee; font-weight: 700; width: 38%; }
+  .scores { table-layout: fixed; font-size: 9.5pt; }
+  .scores th, .scores td { border: 1px solid #555; padding: 4px 5px; text-align: left; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
+  .scores th { background: #ddd; }
+  .scores thead { display: table-header-group; }
+  .scores tr { break-inside: avoid; page-break-inside: avoid; }
+  .note { font-size: 9.5pt; color: #333; margin-top: 8px; }
+  .empty { border: 1px dashed #555; padding: 10px; text-align: center; margin: 6px 0; }
+  .sign { margin-top: 22mm; display: flex; justify-content: space-between; gap: 20mm; break-inside: avoid; }
+  .sign div { flex: 1; border-top: 1px solid #111; padding-top: 3px; font-size: 9.5pt; text-align: center; }
+  @media print { .toolbar { display: none; } .sheet { padding: 0; max-width: none; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">Print / Save as PDF</button>
+  <a class="plain" href="{% url 'student_progress' r.classroom.pk r.student.pk %}">Back</a>
+  <span>Choose paper size A4. Switch <span>Choose A4 and turn on &ldquo;Headers and footers&rdquo; off for the cleanest result.</span>ldquo;Headers and footers<span>Choose A4 and turn on &ldquo;Headers and footers&rdquo; off for the cleanest result.</span>rdquo; off for the cleanest result.</span>
+</div>
+<div class="sheet">
+<header>
+  <div class="school">{{ school_name }}</div>
+  <h1>Student Academic Progress Report</h1>
+</header>
+
+<table class="info">
+  <tr><td class="k">Student name</td><td>{{ r.student.profile.display_name }}</td><td class="k">Student ID</td><td>{{ r.student.profile.student_id|default:"Not provided" }}</td></tr>
+  <tr><td class="k">Classroom</td><td>{{ r.classroom.name }}</td><td class="k">Mentor</td><td>{{ r.classroom.mentor_name }}</td></tr>
+  <tr><td class="k">Report generated</td><td colspan="3">{{ r.now|date:"F j, Y, g:i A" }} (Philippine Time){% if generated_by %} &middot; by {{ generated_by }}{% endif %}</td></tr>
+</table>
+
+<h2>Overall Progress Summary</h2>
+<table class="sum">
+  <tr><td class="k">Lessons completed</td><td>{{ r.lessons_done }} of {{ r.lessons_total }}</td></tr>
+  <tr><td class="k">Quizzes submitted</td><td>{{ r.quizzes_submitted }} of {{ r.quizzes_total }}</td></tr>
+  <tr><td class="k">Quizzes not submitted</td><td>{{ r.quizzes_missing }}</td></tr>
+  <tr><td class="k">Overdue quizzes</td><td>{{ r.overdue }}</td></tr>
+  <tr><td class="k">Average finalized quiz score</td><td>{% if r.average is not None %}{{ r.average }}% (from {{ r.finalized_count }} finalized quiz{{ r.finalized_count|pluralize:"zes" }}){% else %}Not available &mdash; no finalized scores yet{% endif %}</td></tr>
+</table>
+<p class="note">Unsubmitted quizzes are not counted as zero. Quizzes still waiting for manual grading are not included in the average.</p>
+
+<h2>Quiz Score Details</h2>
+{% if r.finalized_count == 0 %}<div class="empty">No finalized quiz scores are available for this student yet.</div>{% endif %}
+<table class="scores">
+  <colgroup><col style="width:21%"><col style="width:10%"><col style="width:13%"><col style="width:13%"><col style="width:9%"><col style="width:6%"><col style="width:13%"><col style="width:15%"></colgroup>
+  <thead><tr><th>Quiz</th><th>Type</th><th>Due</th><th>Submitted</th><th>Score</th><th>%</th><th>Status</th><th>Grading</th></tr></thead>
+  <tbody>
+  {% for row in r.rows %}
+    <tr>
+      <td>{{ row.quiz.title }}</td><td>{{ row.type }}</td>
+      <td>{% if row.due %}{{ row.due|date:"M j, Y g:i A" }}{% else %}No deadline{% endif %}</td>
+      <td>{% if row.submitted_at %}{{ row.submitted_at|date:"M j, Y g:i A" }}{% else %}&mdash;{% endif %}</td>
+      <td>{% if row.earned is not None %}{{ row.earned }} / {{ row.maximum }}{% else %}&mdash;{% endif %}</td>
+      <td>{% if row.percentage is not None %}{{ row.percentage }}%{% else %}&mdash;{% endif %}</td>
+      <td>{{ row.state.label }}</td><td>{{ row.grading_label.0 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" style="text-align:center">No quizzes have been assigned in this classroom.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p class="note">Where several attempts exist, the best score is shown; whether a quiz counts as on time or late depends on the first submission.</p>
+
+<div class="sign"><div>Mentor: {{ r.classroom.mentor_name }}</div><div>Date</div></div>
+</div>
+{% if autoprint %}<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 400); });</script>{% endif %}
+</body>
+</html>

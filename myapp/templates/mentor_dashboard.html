@@ -4,8 +4,16 @@
 <div class="space-y-6">
     <div>
         <h2 class="text-2xl font-extrabold text-slate-800">Mentor Dashboard</h2>
-        <p class="text-slate-500 text-sm mt-1">Welcome, {{ request.user.username }}. Manage your lessons and quizzes here.</p>
+        <p class="text-slate-500 text-sm mt-1">Welcome, {{ request.user.profile.display_name|default:request.user.username }}. Manage your lessons and quizzes here.</p>
     </div>
+
+    <section>
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-extrabold text-slate-800">My Classrooms</h3>
+            <a href="{% url 'mentor_classroom_create' %}" class="text-red-700 text-sm font-semibold hover:underline"><i class="fa-solid fa-plus"></i> New Classroom</a>
+        </div>
+        {% with classrooms=my_classrooms %}{% include 'mentor_classroom_cards.html' %}{% endwith %}
+    </section>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -17,6 +25,11 @@
             <p class="text-[10px] font-bold text-slate-400 tracking-wider">MY QUIZZES</p>
             <p class="text-2xl font-extrabold text-slate-800 mt-1">{{ my_quizzes.count }}</p>
             <a href="{% url 'mentor_quizzes' %}" class="text-red-700 text-xs font-semibold hover:underline mt-2 inline-block">Manage Quizzes &rarr;</a>
+        </div>
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm sm:col-span-2">
+            <p class="text-[10px] font-bold text-slate-400 tracking-wider">STUDENT PROGRESS</p>
+            <p class="text-sm text-slate-500 mt-1">See who has taken your quizzes, who submitted late, and who hasn't started.</p>
+            <a href="{% url 'mentor_progress_overview' %}" class="text-red-700 text-xs font-semibold hover:underline mt-2 inline-block">View Student Progress &rarr;</a>
         </div>
     </div>
 </div>

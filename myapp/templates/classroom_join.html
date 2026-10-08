@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-lg mx-auto space-y-4">
+    <a href="{% url 'home' %}" class="text-sm text-slate-500 hover:text-red-700"><i class="fa-solid fa-arrow-left"></i> Back to dashboard</a>
+
+    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        {% if preview %}
+            <h2 class="text-xl font-extrabold text-slate-800 mb-1">Join this classroom?</h2>
+            <p class="text-slate-500 text-sm mb-5">Please confirm this is the classroom your mentor told you about.</p>
+
+            <div class="p-4 rounded-lg bg-red-50 border border-red-100 mb-5">
+                <p class="text-lg font-extrabold text-red-900">{{ preview.name }}</p>
+                <p class="text-sm text-slate-600"><i class="fa-solid fa-chalkboard-user"></i> Mentor: <strong>{{ preview.mentor_name }}</strong></p>
+                {% if preview.description %}<p class="text-xs text-slate-500 mt-1">{{ preview.description }}</p>{% endif %}
+            </div>
+
+            <form method="POST" class="flex flex-wrap gap-3" id="join-form">
+                {% csrf_token %}
+                <input type="hidden" name="code" value="{{ code }}">
+                <input type="hidden" name="confirm" value="1">
+                <button type="submit" id="join-btn" class="bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                    Yes, join classroom
+                </button>
+                <a href="{% url 'classroom_join' %}" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Not this one</a>
+            </form>
+        {% else %}
+            <h2 class="text-xl font-extrabold text-slate-800 mb-1">Join a classroom</h2>
+            <p class="text-slate-500 text-sm mb-5">Type the classroom code your mentor gave you. Codes use letters and numbers, for example <span class="font-mono font-semibold">K7M2QXA</span>.</p>
+
+            {% if error %}
+                <div class="mb-4 px-4 py-3 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200" role="alert">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST" id="join-form" novalidate>
+                {% csrf_token %}
+                <label for="code" class="text-slate-500 text-xs font-semibold block mb-2">CLASSROOM CODE</label>
+                <input id="code" name="code" type="text" value="{{ code }}" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" required autofocus
+                       class="w-full border border-slate-300 rounded-lg px-4 py-3 text-lg font-mono tracking-widest uppercase focus:outline-none focus:border-red-500"
+                       placeholder="ENTER CODE">
+                <button type="submit" id="join-btn" class="mt-4 w-full bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                    Find classroom
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+<script>
+(function () {
+    var form = document.getElementById("join-form"), btn = document.getElementById("join-btn");
+    if (!form || !btn) { return; }
+    form.addEventListener("submit", function () {
+        // Loading indicator + stop double-clicks.
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Please wait...';
+    });
+})();
+</script>
+{% endblock %}

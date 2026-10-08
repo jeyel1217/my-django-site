@@ -18,20 +18,21 @@
             <div>
                 <label class="text-slate-500 text-xs font-semibold block mb-2">USERNAME</label>
                 {{ form.username }}
-                {% if form.username.errors %}<p class="text-xs text-red-600 mt-1">{{ form.username.errors|join:", " }}</p>{% endif %}
+                <p class="text-xs text-slate-400 mt-1">{{ form.username.help_text }}</p>
+                {% if form.username.errors %}<p class="text-xs text-red-600 mt-1">{{ form.username.errors|join:" " }}</p>{% endif %}
             </div>
-
-            <div>
-                <label class="text-slate-500 text-xs font-semibold block mb-2">EMAIL (optional)</label>
-                {{ form.email }}
-                {% if form.email.errors %}<p class="text-xs text-red-600 mt-1">{{ form.email.errors|join:", " }}</p>{% endif %}
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-500">
+                <i class="fa-solid fa-circle-info"></i>
+                No Gmail is needed. If the Mentor forgets the password or gets locked out,
+                reset it from <strong>Manage Users</strong>.
             </div>
 
             <div>
                 <label class="text-slate-500 text-xs font-semibold block mb-2">TEMPORARY PASSWORD</label>
                 {{ form.password }}
+                {% include 'password_strength.html' with input_id='id_password' %}
                 <p class="text-xs text-slate-400 mt-1">{{ form.password.help_text }}</p>
-                {% if form.password.errors %}<p class="text-xs text-red-600 mt-1">{{ form.password.errors|join:", " }}</p>{% endif %}
+                {% if form.password.errors %}<p class="text-xs text-red-600 mt-1">{{ form.password.errors|join:" " }}</p>{% endif %}
             </div>
 
             <button type="submit"
@@ -41,4 +42,5 @@
         </form>
     </div>
 </div>
+{% include 'password_toggle.html' %}
 {% endblock %}

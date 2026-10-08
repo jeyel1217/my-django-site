@@ -4,22 +4,25 @@
 <div class="space-y-6">
     <div>
         <h2 class="text-2xl font-extrabold text-slate-800">Badges</h2>
-        <p class="text-slate-500 text-sm mt-1">Earn badges by completing lessons and quizzes.</p>
+        <p class="text-slate-500 text-sm mt-1">Earn badges by completing lessons and quizzes. <strong class="text-slate-700">Click a badge</strong> to see what it means and how to get it.</p>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {% for badge in badges %}
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-center
-                        {% if not badge.is_earned %}opacity-40 grayscale{% endif %}">
-                <div class="w-14 h-14 mx-auto rounded-full bg-red-50 text-red-700 flex items-center justify-center text-2xl mb-3">
-                    <i class="{{ badge.icon_class }}"></i>
-                </div>
-                <h3 class="font-bold text-slate-800 text-sm">{{ badge.name }}</h3>
-                <p class="text-xs text-slate-500 mt-1">{{ badge.description }}</p>
-                {% if not badge.is_earned %}
-                    <p class="text-[10px] text-slate-400 mt-2 uppercase tracking-wide">Locked</p>
+        {% for c in cards %}
+            <button type="button" data-badge="{{ forloop.counter0 }}"
+                    class="badge-card text-center bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-red-400 transition w-full"
+                    aria-haspopup="dialog" aria-label="{{ c.badge.name }}: {% if c.is_earned %}earned{% else %}locked{% endif %}. Show details.">
+                <span class="block w-14 h-14 mx-auto rounded-full bg-red-50 text-red-700 flex items-center justify-center text-2xl mb-3 {% if not c.is_earned %}opacity-40 grayscale{% endif %}">
+                    <i class="{{ c.badge.icon_class }}" aria-hidden="true"></i>
+                </span>
+                <span class="block font-bold text-slate-800 text-sm">{{ c.badge.name }}</span>
+                <span class="block text-xs text-slate-500 mt-1">{{ c.meaning }}</span>
+                {% if c.is_earned %}
+                    <span class="inline-block mt-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700">&#10003; Earned</span>
+                {% else %}
+                    <span class="inline-block mt-2 text-[10px] uppercase tracking-wide text-slate-400">&#128274; Locked{% if c.target %} &middot; {{ c.current }}/{{ c.target }}{% endif %}</span>
                 {% endif %}
-            </div>
+            </button>
         {% empty %}
             <div class="col-span-full text-center text-slate-400 p-10 bg-white rounded-xl border border-dashed border-slate-300">
                 No badges defined yet. Add some from the Django admin.
@@ -27,4 +30,57 @@
         {% endfor %}
     </div>
 </div>
+
+<!-- Details window (native dialog: Esc closes it, focus stays inside while open) -->
+<dialog id="badge-dialog" aria-labelledby="bd-name" style="border:0;padding:0;border-radius:1rem;max-width:26rem;width:calc(100% - 2rem);box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    <div class="p-6 text-center">
+        <div id="bd-icon" class="w-20 h-20 mx-auto rounded-full bg-red-50 text-red-700 flex items-center justify-center text-4xl mb-3"><i aria-hidden="true"></i></div>
+        <h3 id="bd-name" class="text-xl font-extrabold text-slate-800"></h3>
+        <p id="bd-status" class="text-xs font-bold uppercase tracking-wide mt-1"></p>
+
+        <div class="text-left mt-5 space-y-4">
+            <div><p class="text-[10px] font-bold text-slate-400 tracking-wider">WHAT IT MEANS</p><p id="bd-meaning" class="text-sm text-slate-700 mt-1"></p></div>
+            <div><p class="text-[10px] font-bold text-slate-400 tracking-wider">HOW TO GET IT</p><p id="bd-how" class="text-sm text-slate-700 mt-1"></p></div>
+            <div id="bd-progress-box">
+                <p class="text-[10px] font-bold text-slate-400 tracking-wider">YOUR PROGRESS</p>
+                <div class="h-2 bg-slate-100 rounded mt-2" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="bd-bar"><div id="bd-fill" class="h-2 bg-emerald-500 rounded" style="width:0%;transition:width .4s"></div></div>
+                <p id="bd-progress-text" class="text-xs text-slate-500 mt-1"></p>
+            </div>
+        </div>
+        <button type="button" id="bd-close" class="mt-6 w-full bg-red-700 text-white font-semibold py-2.5 rounded-lg hover:bg-red-800">Close</button>
+    </div>
+</dialog>
+<style>#badge-dialog::backdrop{background:rgba(15,23,42,.55)}</style>
+
+{{ cards_json|json_script:"badge-data" }}
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById('badge-data').textContent),
+      dlg = document.getElementById('badge-dialog'), opener = null;
+  function $(id) { return document.getElementById(id); }
+  function open(i, btn) {
+    var c = data[i]; opener = btn;
+    $('bd-icon').firstElementChild.className = c.icon;
+    $('bd-icon').style.filter = c.earned ? '' : 'grayscale(1)'; $('bd-icon').style.opacity = c.earned ? '1' : '.6';
+    $('bd-name').textContent = c.name;
+    var st = $('bd-status');
+    st.textContent = c.earned ? ('✓ Earned' + (c.earned_at ? ' on ' + c.earned_at : '')) : '🔒 Not earned yet';
+    st.style.color = c.earned ? '#047857' : '#64748b';
+    $('bd-meaning').textContent = c.meaning; $('bd-how').textContent = c.how;
+    var box = $('bd-progress-box');
+    if (c.target) {
+      box.style.display = ''; $('bd-fill').style.width = c.pct + '%'; $('bd-bar').setAttribute('aria-valuenow', c.pct);
+      $('bd-progress-text').textContent = c.earned ? 'Completed: ' + c.current + ' of ' + c.target
+        : c.current + ' of ' + c.target + ' done — ' + c.remaining + ' more to go.';
+    } else { box.style.display = 'none'; }
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  document.querySelectorAll('.badge-card').forEach(function (b) {
+    b.addEventListener('click', function () { open(parseInt(b.getAttribute('data-badge'), 10), b); });
+  });
+  function close() { if (dlg.close) dlg.close(); else dlg.removeAttribute('open'); if (opener) opener.focus(); }
+  $('bd-close').addEventListener('click', close);
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) close(); });   // click outside the box
+})();
+</script>
 {% endblock %}
