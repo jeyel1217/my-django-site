@@ -1,4 +1,5 @@
 import re
+from django.utils import timezone
 
 from django import forms
 from django.contrib.auth.models import User
@@ -335,6 +336,16 @@ class QuizForm(forms.ModelForm):
         self.fields['classroom'].queryset = Classroom.objects.filter(mentor=mentor_user) if mentor_user else Classroom.objects.none()
         if not self.is_bound:
             self.initial['has_deadline'] = bool(self.instance and self.instance.deadline_datetime)
+        # The date picker greys out days before today (the server re-checks this in clean()).
+        # Not applied to a quiz whose saved deadline is already past, so editing its other
+        # fields is never blocked by the browser.
+        saved = self.instance.deadline_datetime if self.instance and self.instance.pk else None
+        if not (saved and saved < timezone.now()):
+            self.fields['deadline_datetime'].widget.attrs['min'] = timezone.localtime(timezone.now()).strftime('%Y-%m-%dT%H:%M')
+
+    def _deadline_unchanged(self, deadline):
+        saved = self.instance.deadline_datetime if self.instance and self.instance.pk else None
+        return bool(saved) and deadline == saved.replace(second=0, microsecond=0)
 
     def clean(self):
         cleaned = super().clean()
@@ -344,6 +355,9 @@ class QuizForm(forms.ModelForm):
         if cleaned.get('has_deadline'):
             if not deadline and 'deadline_datetime' not in self.errors:
                 self.add_error('deadline_datetime', "Please choose the deadline date and time.")
+            elif deadline and deadline < timezone.now().replace(second=0, microsecond=0) and not self._deadline_unchanged(deadline):
+                # Checked on the server, so it cannot be skipped by editing the page.
+                self.add_error('deadline_datetime', "The deadline cannot be in the past. Choose today (a later time) or a future date.")
             elif start and deadline and deadline <= start:
                 self.add_error('deadline_datetime', "The deadline must be after the start time.")
         else:
@@ -653,6 +667,8 @@ class AccommodationForm(forms.Form):
             nd = cleaned.get('new_deadline')
             if not nd:
                 self.add_error('new_deadline', 'Choose the new deadline date and time.')
+            elif nd < timezone.now().replace(second=0, microsecond=0):
+                self.add_error('new_deadline', 'The new deadline cannot be in the past.')
             elif self.quiz and self.quiz.deadline_datetime and nd <= self.quiz.deadline_datetime:
                 self.add_error('new_deadline', 'The new deadline must be later than the quiz deadline.')
             elif self.quiz and not self.quiz.deadline_datetime:
