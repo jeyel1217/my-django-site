@@ -1,37 +1,201 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-6">
-    <a href="{% url 'lessons' %}" class="text-sm text-slate-500 hover:text-red-700">
+<div class="max-w-4xl mx-auto space-y-6">
+    <a href="{% if is_student %}{% url 'lessons' %}{% else %}{% url 'mentor_lessons' %}{% endif %}" class="text-sm text-slate-500 hover:text-red-700">
         <i class="fa-solid fa-arrow-left"></i> Back to Lessons
     </a>
 
-    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-        <span class="inline-block text-[10px] font-bold tracking-wider text-red-700 bg-red-50 px-2 py-1 rounded mb-3">
-            LESSON {{ lesson.order }}
-        </span>
-        <h1 class="text-2xl font-extrabold text-slate-800 mb-6">{{ lesson.title }}</h1>
+    <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="inline-block text-[10px] font-bold tracking-wider text-red-700 bg-red-50 px-2 py-1 rounded">LESSON {{ lesson.order }}</span>
+            {% if is_student %}
+                {% if progress.completed %}<span class="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">Completed</span>
+                {% elif progress.status == 'in_progress' %}<span class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">In progress</span>
+                {% else %}<span class="text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">Not started</span>{% endif %}
+            {% else %}
+                <span class="text-xs font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded">Preview &middot; no progress is recorded</span>
+                {% if not lesson.is_published %}<span class="text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">Draft</span>{% endif %}
+            {% endif %}
+        </div>
+        <h1 class="text-2xl font-extrabold text-slate-800 mb-4">{{ lesson.title }}</h1>
 
         <div class="prose prose-slate max-w-none text-slate-600 leading-relaxed">
             {{ lesson.content|linebreaks }}
         </div>
 
-        <div class="mt-8 pt-6 border-t border-slate-100">
+        {# ---------------- the lesson's file ---------------- #}
+        {% if lf %}
+            <div class="mt-6">
+                <p class="text-xs font-bold tracking-wider text-slate-400 mb-2"><i class="fa-regular fa-file-lines"></i> LESSON FILE &middot; {{ lf.original_name }}</p>
+                {% if viewable %}
+                <div id="viewer"
+                     data-src="{% url 'lesson_file' lesson.slug %}" data-progress-url="{% url 'lesson_progress' lesson.slug %}"
+                     data-total="{{ lf.page_count }}" data-start="{{ resume_page }}" data-max="{{ max_page }}"
+                     data-student="{% if is_student %}1{% else %}0{% endif %}" data-completed="{% if progress.completed %}1{% else %}0{% endif %}"
+                     data-csrf="{{ csrf_token }}"
+                     class="border border-slate-200 rounded-xl overflow-hidden bg-slate-100">
+                    <div class="flex flex-wrap items-center gap-2 justify-between bg-white border-b border-slate-200 px-3 py-2">
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="pg-prev" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50 disabled:opacity-40 whitespace-nowrap" aria-label="Previous page">&larr; Prev</button>
+                            <label class="text-sm text-slate-600 flex items-center gap-1">Page
+                                <input id="pg-input" type="number" min="1" max="{{ lf.page_count }}" value="{{ resume_page }}" class="w-14 px-2 py-1 rounded border border-slate-300 text-sm text-center" aria-label="Page number">
+                                of <span id="pg-total">{{ lf.page_count }}</span></label>
+                            <button type="button" id="pg-next" class="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-900 disabled:opacity-40 whitespace-nowrap" aria-label="Next page">Next &rarr;</button>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-slate-500 min-w-[9rem]">
+                            <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden"><div id="pg-bar" class="h-full bg-red-700" style="width:0%"></div></div>
+                            <span id="pg-pct">0%</span>
+                        </div>
+                    </div>
+                    <div id="pg-note" class="hidden px-4 py-2 text-xs bg-amber-50 text-amber-800 border-b border-amber-200"></div>
+                    <div class="p-3 flex justify-center overflow-auto" style="max-height:80vh">
+                        <canvas id="pg-canvas" class="bg-white shadow max-w-full" aria-label="Lesson page"></canvas>
+                    </div>
+                    <p id="pg-status" class="text-center text-xs text-slate-400 pb-3">Loading the lesson...</p>
+                </div>
+                {% if is_student and resume_page > 1 and not progress.completed %}
+                    <p class="mt-2 text-xs text-slate-500"><i class="fa-solid fa-bookmark"></i> You stopped on page {{ resume_page }}. The lesson continues from there.</p>
+                {% endif %}
+                {% else %}
+                    <div class="px-4 py-3 rounded-lg text-sm bg-amber-50 text-amber-800 border border-amber-200">
+                        {% if is_student %}The reading copy of this lesson is not ready yet. Please tell your mentor.
+                        {% else %}This file cannot be shown page by page. {{ lf.conversion_message }}
+                            <a class="underline font-semibold" href="{% url 'mentor_lesson_edit' lesson.pk %}">Open the lesson settings</a>{% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {# ---------------- finishing the lesson ---------------- #}
+        {% if is_student %}
+        <div class="mt-8 pt-6 border-t border-slate-100 space-y-4">
             {% if progress.completed %}
                 <span class="inline-flex items-center gap-2 text-emerald-600 font-semibold text-sm">
                     <i class="fa-solid fa-circle-check"></i> Completed
                 </span>
             {% else %}
-                <form method="POST">
+                <form method="POST" id="complete-form" class="flex flex-wrap items-center gap-3">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="mark_complete">
-                    <button type="submit"
-                        class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
-                        Mark as Complete
+                    <button type="submit" id="complete-btn" {% if viewable and max_page < lf.page_count %}disabled{% endif %}
+                        class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+                        Mark as Completed
                     </button>
+                    {% if viewable %}<span id="complete-hint" class="text-xs text-slate-500">{% if max_page < lf.page_count %}Read to the last page (page {{ lf.page_count }}) to unlock this button.{% else %}You reached the last page.{% endif %}</span>{% endif %}
                 </form>
             {% endif %}
+
+            {% if linked_quizzes %}
+            <div class="space-y-2">
+                {% for q in linked_quizzes %}
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800"><i class="fa-solid fa-pen-to-square text-red-700"></i> {{ q.title }}</p>
+                        <p class="text-xs text-slate-500">{% if q.require_lesson_first and not progress.completed %}Complete this lesson to unlock this quiz.{% else %}The quiz for this lesson.{% endif %}</p>
+                    </div>
+                    {% if q.unlocked %}
+                        <a href="{% url 'quiz_detail' q.pk %}" class="bg-red-700 text-white font-semibold px-5 py-2 rounded-lg hover:bg-red-800 transition text-sm">Proceed to Quiz &rarr;</a>
+                    {% else %}
+                        <span class="px-5 py-2 rounded-lg bg-slate-200 text-slate-500 text-sm font-semibold cursor-not-allowed" aria-disabled="true"><i class="fa-solid fa-lock"></i> Locked</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
+
+{% if viewable %}
+<script src="{% static 'vendor/pdfjs/pdf.min.js' %}"></script>
+<script>
+(function () {
+    var box = document.getElementById('viewer');
+    if (!box || typeof pdfjsLib === 'undefined') {
+        var s = document.getElementById('pg-status'); if (s) { s.textContent = 'The viewer could not be loaded. Reload the page.'; }
+        return;
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "{% static 'vendor/pdfjs/pdf.worker.min.js' %}";
+
+    var total = parseInt(box.dataset.total, 10), cur = parseInt(box.dataset.start, 10) || 1,
+        maxReached = parseInt(box.dataset.max, 10) || 0, isStudent = box.dataset.student === '1',
+        csrf = box.dataset.csrf, progressUrl = box.dataset.progressUrl;
+    var canvas = document.getElementById('pg-canvas'), ctx = canvas.getContext('2d'),
+        input = document.getElementById('pg-input'), prev = document.getElementById('pg-prev'), next = document.getElementById('pg-next'),
+        bar = document.getElementById('pg-bar'), pct = document.getElementById('pg-pct'), note = document.getElementById('pg-note'),
+        status = document.getElementById('pg-status'), completeBtn = document.getElementById('complete-btn'), hint = document.getElementById('complete-hint');
+    var pdf = null, rendering = false, queued = null;
+
+    function say(msg) { if (!msg) { note.classList.add('hidden'); return; } note.textContent = msg; note.classList.remove('hidden'); }
+    function unlock() {
+        if (completeBtn && maxReached >= total) { completeBtn.disabled = false; if (hint) { hint.textContent = 'You reached the last page.'; } }
+    }
+    function paintBar() {
+        var shown = isStudent ? Math.max(maxReached, cur) : cur, p = Math.round(shown * 100 / total);
+        bar.style.width = p + '%'; pct.textContent = p + '%';
+        input.value = cur; prev.disabled = cur <= 1; next.disabled = cur >= total;
+    }
+
+    function draw(n) {
+        if (rendering) { queued = n; return; }
+        rendering = true; status.textContent = 'Loading page ' + n + '...';
+        pdf.getPage(n).then(function (page) {
+            var wrap = canvas.parentElement.clientWidth - 24, base = page.getViewport({scale: 1}),
+                scale = Math.min(2, Math.max(0.3, wrap / base.width)), vp = page.getViewport({scale: scale}),
+                ratio = window.devicePixelRatio || 1;
+            canvas.width = Math.floor(vp.width * ratio); canvas.height = Math.floor(vp.height * ratio);
+            canvas.style.width = Math.floor(vp.width) + 'px'; canvas.style.height = Math.floor(vp.height) + 'px';
+            return page.render({canvasContext: ctx, viewport: vp, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null}).promise;
+        }).then(function () {
+            status.textContent = ''; rendering = false;
+            if (queued !== null) { var q = queued; queued = null; draw(q); }
+        }).catch(function () { rendering = false; status.textContent = 'This page could not be shown. Try the next page or reload.'; });
+    }
+
+    function save(n) {
+        if (!isStudent) { return Promise.resolve(true); }
+        return fetch(progressUrl, {
+            method: 'POST', credentials: 'same-origin',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf}, body: JSON.stringify({page: n})
+        }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, d: d}; }); })
+          .then(function (res) {
+              if (res.ok) { maxReached = res.d.max_page; unlock(); paintBar(); say(''); return true; }
+              if (res.d && res.d.max_page !== undefined) { maxReached = res.d.max_page; }
+              say(res.d && res.d.error ? res.d.error + ' Go to page ' + (maxReached + 1) + ' next.' : 'Your progress could not be saved.');
+              return false;
+          }).catch(function () { say('Your progress could not be saved. Check your connection.'); return false; });
+    }
+
+    function go(n) {
+        n = Math.max(1, Math.min(total, n || 1));
+        if (isStudent && n > maxReached + 1) {                 // the server enforces this too
+            say('Read the pages in order. You can go to page ' + (maxReached + 1) + ' next.'); input.value = cur; return;
+        }
+        var from = cur; cur = n; paintBar(); draw(n); say('');
+        save(n).then(function (ok) { if (!ok && cur === n) { cur = Math.min(from, maxReached + 1) || 1; paintBar(); draw(cur); } });
+    }
+
+    prev.addEventListener('click', function () { go(cur - 1); });
+    next.addEventListener('click', function () { go(cur + 1); });
+    input.addEventListener('change', function () { go(parseInt(input.value, 10)); });
+    document.addEventListener('keydown', function (e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { return; }
+        if (e.key === 'ArrowRight') { go(cur + 1); } else if (e.key === 'ArrowLeft') { go(cur - 1); }
+    });
+    var t; window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(function () { draw(cur); }, 200); });
+
+    pdfjsLib.getDocument({url: box.dataset.src, withCredentials: true}).promise.then(function (doc) {
+        pdf = doc;
+        if (doc.numPages !== total) { total = doc.numPages; }
+        // the first page of a new student is registered as soon as it is shown; resume pages are already known to the server
+        cur = Math.min(cur, maxReached + 1, total) || 1;
+        paintBar(); unlock(); draw(cur);
+        if (isStudent && maxReached === 0) { save(1); }
+    }).catch(function () { status.textContent = 'The lesson file could not be loaded. Reload the page or tell your mentor.'; });
+})();
+</script>
+{% endif %}
 {% endblock %}

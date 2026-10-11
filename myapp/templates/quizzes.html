@@ -35,10 +35,12 @@
                 <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 text-xs font-semibold">
                     {% if quiz.best_score is not None %}
                         <span class="text-emerald-600">Best: {{ quiz.best_score }}%</span>
+                    {% elif quiz.has_pending %}
+                        <span class="text-amber-600">Pending grading</span>
                     {% else %}
                         <span class="text-slate-400">Not attempted</span>
                     {% endif %}
-                    <span class="text-red-700">Start <i class="fa-solid fa-arrow-right"></i></span>
+                    {% if quiz.locked_by_lesson %}<span class="text-slate-500"><i class="fa-solid fa-lock"></i> Finish the lesson first</span>{% else %}<span class="text-red-700">Start <i class="fa-solid fa-arrow-right"></i></span>{% endif %}
                 </div>
             </a>
         {% endfor %}

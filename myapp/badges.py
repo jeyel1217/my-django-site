@@ -8,7 +8,7 @@ def _counts(user):
     return {
         'lessons': LessonProgress.objects.filter(user=user, completed=True).count(),
         'quizzes': QuizAttempt.objects.filter(user=user).count(),
-        'perfect': QuizAttempt.objects.filter(user=user, score=100).count(),
+        'perfect': QuizAttempt.objects.filter(user=user, score=100, grading_status='finalized').count(),
     }
 
 

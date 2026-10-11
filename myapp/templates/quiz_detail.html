@@ -38,27 +38,150 @@
             <div class="mb-6 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200" role="alert">{{ closed_reason }}</div>
         {% endif %}
 {% if not closed %}
-        <form method="POST" class="space-y-6">
+        {% if preview %}<div class="mb-5 px-4 py-3 rounded-lg text-sm bg-sky-50 text-sky-800 border border-sky-200"><strong>Preview.</strong> This is how students see the quiz. Nothing can be submitted from here. <a class="underline font-semibold" href="{% url 'mentor_quiz_questions' quiz.pk %}">Back to questions</a></div>{% endif %}
+        <p class="text-xs text-slate-400 mb-4">{{ questions|length }} question{{ questions|length|pluralize }} &middot; {{ total_points }} point{{ total_points|pluralize }} in total</p>
+
+        <form method="POST" id="quiz-form" class="space-y-6" novalidate>
             {% csrf_token %}
+            {% if submit_token %}<input type="hidden" name="submit_token" value="{{ submit_token }}">{% endif %}
+
+            {# Question buttons (filled in by the script): jump to any question; filled ones turn green #}
+            <div id="q-nav" class="hidden flex-wrap gap-1.5" aria-label="Questions"></div>
+
             {% for question in questions %}
-                <div class="border-t border-slate-100 pt-5">
-                    <p class="font-semibold text-slate-800 mb-3">{{ forloop.counter }}. {{ question.text }}</p>
-                    <div class="space-y-2">
+                <div class="q-block border-t border-slate-100 pt-5" data-qid="{{ question.id }}" data-type="{{ question.qtype }}">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <p class="font-semibold text-slate-800">{{ forloop.counter }}.
+                            {% if question.qtype != 'FILL' %}{{ question.text }}{% else %}<span class="text-xs font-normal text-slate-500">Fill in the blank{{ question.blank_count|pluralize }}:</span>{% endif %}</p>
+                        <span class="text-xs text-slate-400 whitespace-nowrap">{{ question.points }} pt{{ question.points|pluralize }}</span>
+                    </div>
+
+                    {% if question.qtype == 'MC' %}
+                        {% if question.allow_multiple %}<p class="text-xs text-slate-500 mb-2">Choose all that apply.</p>{% endif %}
+                        <div class="space-y-2">
                         {% for choice in question.choices.all %}
                             <label class="flex items-center gap-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 cursor-pointer text-sm text-slate-700">
-                                <input type="radio" name="question_{{ question.id }}" value="{{ choice.id }}" required>
+                                <input type="{% if question.allow_multiple %}checkbox{% else %}radio{% endif %}" name="question_{{ question.id }}" value="{{ choice.id }}" {% if preview %}disabled{% endif %}>
                                 {{ choice.text }}
                             </label>
                         {% endfor %}
-                    </div>
+                        </div>
+
+                    {% elif question.qtype == 'FILL' %}
+                        <p class="text-slate-800 leading-9">{% for part in question.text_parts %}{{ part }}{% if not forloop.last %}<input type="text" name="question_{{ question.id }}_b{{ forloop.counter }}" maxlength="200" autocomplete="off" aria-label="Blank {{ forloop.counter }}" {% if preview %}disabled{% endif %}
+                            class="mx-1 w-40 max-w-full px-2 py-1 border-b-2 border-slate-400 bg-slate-50 focus:outline-none focus:border-red-600 text-sm">{% endif %}{% endfor %}</p>
+
+                    {% else %}
+                        <textarea name="question_{{ question.id }}" rows="6" maxlength="10000" placeholder="Write your answer here..." {% if preview %}disabled{% endif %}
+                            class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
+                        <p class="text-xs text-slate-400 mt-1">Your mentor will mark this answer, so your final score may stay pending for a while.</p>
+                    {% endif %}
                 </div>
             {% endfor %}
 
-            <button type="submit"
-                class="w-full bg-red-700 text-white font-semibold py-3 rounded-lg hover:bg-red-800 transition">
-                Submit Answers
-            </button>
+            {% if not preview %}
+            <div class="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <button type="button" id="q-prev" class="hidden px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">&larr; Previous</button>
+                <span id="q-count" class="hidden text-xs text-slate-400"></span>
+                <button type="button" id="q-next" class="hidden px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-900">Next &rarr;</button>
+                <button type="submit" id="q-submit"
+                    class="ml-auto bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg hover:bg-red-800 transition">
+                    Submit Answers
+                </button>
+            </div>
+            {% endif %}
         </form>
+
+        {% if not preview %}
+        <dialog id="confirm-dialog" class="rounded-xl p-0 w-[min(92vw,26rem)] backdrop:bg-black/40">
+            <div class="p-6 space-y-3">
+                <h3 class="text-lg font-extrabold text-slate-800">Submit your answers?</h3>
+                <p id="confirm-text" class="text-sm text-slate-600"></p>
+                <p class="text-xs text-slate-400">After you submit, these answers are recorded. You cannot change them.</p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" id="confirm-back" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Go back</button>
+                    <button type="button" id="confirm-go" class="px-4 py-2 rounded-lg bg-red-700 text-white text-sm font-semibold hover:bg-red-800">Yes, submit</button>
+                </div>
+            </div>
+        </dialog>
+
+        <script>
+        (function () {
+            var form = document.getElementById('quiz-form');
+            var blocks = Array.prototype.slice.call(form.querySelectorAll('.q-block'));
+            if (!blocks.length) { return; }
+            var nav = document.getElementById('q-nav'), prev = document.getElementById('q-prev'),
+                next = document.getElementById('q-next'), count = document.getElementById('q-count'),
+                submit = document.getElementById('q-submit'), dlg = document.getElementById('confirm-dialog'),
+                cur = 0, sent = false;
+
+            function isAnswered(b) {
+                var fields = b.querySelectorAll('input, textarea'), i, f;
+                for (i = 0; i < fields.length; i++) {
+                    f = fields[i];
+                    if ((f.type === 'radio' || f.type === 'checkbox') ? f.checked : f.value.trim() !== '') { return true; }
+                }
+                return false;
+            }
+            function refresh() {
+                blocks.forEach(function (b, i) {
+                    b.style.display = (i === cur) ? '' : 'none';
+                    var btn = nav.children[i];
+                    var done = isAnswered(b);
+                    btn.className = 'w-9 h-9 rounded-lg text-xs font-bold border ' +
+                        (i === cur ? 'border-red-700 ring-2 ring-red-200 ' : 'border-slate-200 ') +
+                        (done ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-slate-500');
+                    btn.setAttribute('aria-label', 'Question ' + (i + 1) + (done ? ', answered' : ', not answered'));
+                });
+                prev.style.visibility = cur === 0 ? 'hidden' : 'visible';
+                next.style.visibility = cur === blocks.length - 1 ? 'hidden' : 'visible';
+                count.textContent = 'Question ' + (cur + 1) + ' of ' + blocks.length;
+            }
+            function go(i) { cur = Math.max(0, Math.min(blocks.length - 1, i)); refresh(); window.scrollTo({top: 0, behavior: 'smooth'}); }
+
+            // Build the question buttons and switch to one-question-at-a-time (only when there is more than one).
+            if (blocks.length > 1) {
+                blocks.forEach(function (b, i) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button'; btn.textContent = i + 1;
+                    btn.addEventListener('click', function () { go(i); });
+                    nav.appendChild(btn);
+                });
+                nav.classList.remove('hidden'); nav.classList.add('flex');
+                [prev, next, count].forEach(function (el) { el.classList.remove('hidden'); });
+                prev.addEventListener('click', function () { go(cur - 1); });
+                next.addEventListener('click', function () { go(cur + 1); });
+                form.addEventListener('input', refresh); form.addEventListener('change', refresh);
+                refresh();
+            }
+
+            function unanswered() {
+                var list = [];
+                blocks.forEach(function (b, i) { if (!isAnswered(b)) { list.push(i + 1); } });
+                return list;
+            }
+            // Confirmation first; the button is locked as soon as the answers are really sent.
+            form.addEventListener('submit', function (e) {
+                if (sent) { e.preventDefault(); return; }
+                if (form.dataset.confirmed === '1') { sent = true; submit.disabled = true; submit.textContent = 'Submitting...'; return; }
+                e.preventDefault();
+                var left = unanswered(), t = document.getElementById('confirm-text');
+                t.textContent = left.length
+                    ? 'You have not answered ' + (left.length === 1 ? 'question ' : 'questions ') + left.join(', ') + '. Unanswered questions earn no points.'
+                    : 'You answered all ' + blocks.length + ' question' + (blocks.length === 1 ? '' : 's') + '.';
+                if (typeof dlg.showModal === 'function') { dlg.showModal(); } else if (window.confirm(t.textContent + ' Submit now?')) { form.dataset.confirmed = '1'; form.requestSubmit ? form.requestSubmit() : form.submit(); }
+            });
+            document.getElementById('confirm-back').addEventListener('click', function () {
+                dlg.close();
+                var left = unanswered(); if (left.length && blocks.length > 1) { go(left[0] - 1); }
+            });
+            document.getElementById('confirm-go').addEventListener('click', function () {
+                form.dataset.confirmed = '1'; dlg.close();
+                if (form.requestSubmit) { form.requestSubmit(); } else { form.submit(); }
+            });
+        })();
+        </script>
+        {% endif %}
 {% endif %}
     </div>
 </div>

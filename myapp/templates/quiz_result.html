@@ -1,25 +1,42 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="max-w-md mx-auto text-center bg-white p-10 rounded-xl border border-slate-200 shadow-sm">
-    <div class="text-5xl font-black text-red-700 mb-2">{{ score }}%</div>
-    <p class="text-slate-500 mb-4">You got {{ correct_count }} out of {{ total }} correct on "{{ quiz.title }}"</p>
-
-    {# Submission status: Submitted, or Submitted Late if it was after the deadline #}
-    <div class="mb-6">
-        <span class="inline-block text-sm font-semibold px-3 py-1.5 rounded border {{ state.css }}">{{ state.label }}</span>
-        {% if quiz.deadline_datetime %}
-            <p class="text-xs text-slate-500 mt-2">Deadline: {{ quiz.deadline_datetime|date:"M j, Y – g:i A" }}</p>
+<div class="max-w-2xl mx-auto space-y-5">
+    <div class="text-center bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        {% if attempt.is_pending %}
+            <div class="text-3xl font-black text-amber-600 mb-2"><i class="fa-regular fa-hourglass-half"></i> Pending grading</div>
+            <p class="text-slate-500 text-sm mb-4">Your answers to "{{ quiz.title }}" were submitted. Your mentor still has to mark your written answers, so your final score will appear here once that is done. You will get a notification.</p>
+            {% if attempt.earned_points is not None %}<p class="text-xs text-slate-400">Marked so far: {{ attempt.earned_points|floatformat:"-2" }} of {{ attempt.max_points|floatformat:"-2" }} points (not final).</p>{% endif %}
+        {% else %}
+            <div class="text-5xl font-black text-red-700 mb-2">{{ score }}%</div>
+            <p class="text-slate-500 mb-1">
+                {% if attempt.max_points %}You earned {{ attempt.earned_points|floatformat:"-2" }} of {{ attempt.max_points|floatformat:"-2" }} points on "{{ quiz.title }}"{% else %}You got {{ correct_count }} out of {{ total }} correct on "{{ quiz.title }}"{% endif %}
+            </p>
         {% endif %}
+
+        {# Submission status: Submitted, or Submitted Late if it was after the deadline #}
+        <div class="my-4">
+            <span class="inline-block text-sm font-semibold px-3 py-1.5 rounded border {{ state.css }}">{{ state.label }}</span>
+            {% if quiz.deadline_datetime %}
+                <p class="text-xs text-slate-500 mt-2">Deadline: {{ quiz.deadline_datetime|date:"M j, Y – g:i A" }}</p>
+            {% endif %}
+        </div>
+
+        <div class="flex gap-3 justify-center">
+            <a href="{% url 'quiz_detail' quiz.id %}" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+                Try Again
+            </a>
+            <a href="{% url 'quizzes' %}" class="px-5 py-2.5 rounded-lg bg-red-700 text-white text-sm font-semibold hover:bg-red-800">
+                Back to Quizzes
+            </a>
+        </div>
     </div>
 
-    <div class="flex gap-3 justify-center">
-        <a href="{% url 'quiz_detail' quiz.id %}" class="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
-            Try Again
-        </a>
-        <a href="{% url 'quizzes' %}" class="px-5 py-2.5 rounded-lg bg-red-700 text-white text-sm font-semibold hover:bg-red-800">
-            Back to Quizzes
-        </a>
+    {% if answers %}
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="text-sm font-extrabold text-slate-700 mb-3">Your answers</h3>
+        {% include '_attempt_answers.html' %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}

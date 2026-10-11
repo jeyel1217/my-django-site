@@ -1,3 +1,4 @@
+import secrets
 from datetime import timedelta
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
@@ -13,14 +14,14 @@ from django.views.decorators.debug import sensitive_post_parameters
 
 from .models import (
     Profile, Lesson, LessonProgress,
-    Quiz, Question, Choice, QuizAttempt,
+    Quiz, Question, Choice, QuizAttempt, AttemptAnswer, LessonFile,
     Badge, UserBadge,
     TermsVersion, TermsAcceptance, AuditLog,
     Classroom, Enrollment, normalize_code,
     QuizAccommodation, PolicySettings, FinalWarning, Notification, AccountStatusLog,
 )
 from .forms import (
-    UserUpdateForm, ProfileUpdateForm, LessonForm, QuizForm, QuestionForm,
+    UserUpdateForm, ProfileUpdateForm, LessonForm, QuizForm, QuestionEditForm,
     MentorCreateForm, AdminResetPasswordForm, OTPForm, ForgotPasswordRequestForm, ResetPasswordConfirmForm,
     RegisterForm, users_with_gmail, TermsPublishForm, PhotoFlagForm, ClassroomForm,
     AccommodationForm, PolicyForm,
@@ -39,6 +40,12 @@ from . import classrooms as cls
 from . import deadlines
 from . import progress as prog
 from . import badges as badge_rules
+from . import quizzing
+from . import lessonfiles
+from .lesson_views import (  # noqa: F401  (routed from urls.py)
+    lesson_file_stream, mentor_lesson_file_download, mentor_lesson_file_retry, mentor_lesson_file_remove,
+    lesson_progress_save, readable_lesson,
+)
 from .exams import local_time
 
 # Printed at the top of paper quizzes. Change it here (or set SCHOOL_NAME in settings.py).
@@ -282,13 +289,16 @@ def admin_dashboard(request):
 def lesson_list(request):
     """Only lessons from classrooms this person may see, grouped by classroom."""
     lessons = list(cls.visible_lessons(request.user).select_related('classroom__mentor__profile').order_by('classroom__name', 'order'))
-    completed_ids = set(
-        LessonProgress.objects.filter(user=request.user, completed=True)
-        .values_list('lesson_id', flat=True)
-    )
+    progress = {p.lesson_id: p for p in LessonProgress.objects.filter(user=request.user, lesson__in=lessons)}
+    files = {f.lesson_id: f for f in LessonFile.objects.filter(lesson__in=lessons)}
     groups = {}
     for lesson in lessons:
-        lesson.is_completed = lesson.id in completed_ids
+        p = progress.get(lesson.id)
+        lesson.is_completed = bool(p and p.completed)
+        lesson.status = p.status if p else LessonProgress.STATUS_NOT_STARTED
+        lf = files.get(lesson.id)
+        lesson.file_info = lf
+        lesson.page_of = (p.last_page, lf.page_count) if (p and lf and lf.is_viewable and p.status == 'in_progress') else None
         groups.setdefault(lesson.classroom, []).append(lesson)
 
     return render(request, 'lesson_list.html', {
@@ -300,22 +310,52 @@ def lesson_list(request):
 @login_required
 def lesson_detail(request, slug):
     # 404 (not 403) for a lesson outside the person's classrooms, so its existence is not revealed.
-    lesson = get_object_or_404(cls.visible_lessons(request.user), slug=slug)
-    progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
+    lesson = readable_lesson(request.user, slug)
+    role = Profile.objects.filter(user=request.user).values_list('role', flat=True).first()
+    is_student = role == Profile.ROLE_STUDENT
+    lf = LessonFile.objects.filter(lesson=lesson).first()
+    viewable = bool(lf and lf.is_viewable)
+
+    progress = None
+    if is_student:
+        progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
+        if progress.started_at is None and not viewable:
+            # a text-only lesson counts as started the moment it is opened
+            progress.started_at = timezone.now()
+            progress.save(update_fields=['started_at'])
 
     if request.method == 'POST' and request.POST.get('action') == 'mark_complete':
-        progress.completed = True
-        progress.completed_at = timezone.now()
-        progress.save()
+        if not is_student:
+            raise Http404
+        # With a page-by-page file, the student must really have reached the last page (checked here, not in the browser).
+        if viewable and progress.max_page < lf.page_count:
+            messages.error(request, f'Please read to the last page ({progress.max_page} of {lf.page_count} so far) before marking this lesson as completed.')
+            return redirect('lesson_detail', slug=slug)
+        if not progress.completed:
+            progress.completed = True
+            progress.completed_at = timezone.now()
+            progress.save()
 
-        profile, _ = Profile.objects.get_or_create(user=request.user)
-        profile.update_streak()
-        check_and_award_badges(request.user)
+            profile, _ = Profile.objects.get_or_create(user=request.user)
+            profile.update_streak()
+            check_and_award_badges(request.user)
 
-        messages.success(request, f'"{lesson.title}" marked as complete!')
+        messages.success(request, f'"{lesson.title}" marked as completed!')
         return redirect('lesson_detail', slug=slug)
 
-    return render(request, 'lesson_detail.html', {'lesson': lesson, 'progress': progress})
+    # Quizzes linked to this lesson (the same ones the person may see)
+    quizzes = []
+    if is_student:
+        for q in cls.visible_quizzes(request.user).filter(lesson=lesson).order_by('id'):
+            q.unlocked = progress.completed or not q.require_lesson_first
+            quizzes.append(q)
+
+    return render(request, 'lesson_detail.html', {
+        'lesson': lesson, 'progress': progress, 'lf': lf, 'viewable': viewable, 'is_student': is_student,
+        'resume_page': min(max(progress.last_page, 1), lf.page_count) if (progress and viewable) else 1,
+        'max_page': progress.max_page if progress else 0,
+        'linked_quizzes': quizzes,
+    })
 
 
 # ---------------------------------------------------------
@@ -327,7 +367,7 @@ def quizzes_view(request):
     quizzes = list(cls.visible_quizzes(request.user).select_related('classroom__mentor__profile').order_by('classroom__name', 'id'))
 
     best_scores = dict(
-        QuizAttempt.objects.filter(user=request.user, quiz__in=quizzes)
+        QuizAttempt.objects.filter(user=request.user, quiz__in=quizzes, grading_status='finalized')
         .values('quiz_id')
         .annotate(best=Max('score'))
         .values_list('quiz_id', 'best')
@@ -336,9 +376,14 @@ def quizzes_view(request):
     firsts = exams.first_attempts_by_quiz(request.user, quizzes)
     accs = deadlines.accommodations_for(request.user, quizzes)
 
+    pending_ids, latest = _pending_and_latest(request.user, quizzes)
+    done_lessons = set(LessonProgress.objects.filter(user=request.user, completed=True).values_list('lesson_id', flat=True))
     now = timezone.now()
     for quiz in quizzes:
+        quiz.locked_by_lesson = bool(quiz.require_lesson_first and quiz.lesson_id and quiz.lesson_id not in done_lessons)
         quiz.best_score = best_scores.get(quiz.id)
+        quiz.has_pending = quiz.id in pending_ids
+        quiz.latest_attempt_id = latest.get(quiz.id)
         quiz.state = exams.student_quiz_state(quiz, firsts.get(quiz.id), now, accs.get(quiz.id))
 
     groups = {}
@@ -348,6 +393,21 @@ def quizzes_view(request):
         'quizzes': quizzes,
         'groups': [{'classroom': c, 'quizzes': q} for c, q in groups.items()],
     })
+
+
+def _is_student(user):
+    return Profile.objects.filter(user=user, role=Profile.ROLE_STUDENT).exists()
+
+
+def _pending_and_latest(user, quizzes):
+    """Quizzes where this student has an essay waiting to be graded, and the id of
+    their most recent attempt per quiz (for the 'view results' link)."""
+    pending, latest = set(), {}
+    for a in QuizAttempt.objects.filter(user=user, quiz__in=quizzes).order_by('taken_at', 'id'):
+        latest[a.quiz_id] = a.id
+        if a.grading_status == 'pending':
+            pending.add(a.quiz_id)
+    return pending, latest
 
 
 def _read_start_time(request, quiz):
@@ -378,6 +438,17 @@ def quiz_detail(request, quiz_id):
     questions = quiz.questions.prefetch_related('choices').all()
     session_key = f'quiz_started_{quiz.id}'
 
+    # Linked-lesson rule, checked on the server for every request (GET and POST): a student cannot
+    # open or submit the quiz until the linked lesson is completed. Mentors and Admins are not held back.
+    if quiz.require_lesson_first and quiz.lesson_id and _is_student(request.user) and not LessonProgress.objects.filter(
+            user=request.user, lesson_id=quiz.lesson_id, completed=True).exists():
+        messages.error(request, f'Finish the lesson "{quiz.lesson.title}" first. Then this quiz opens.')
+        if request.method == 'POST':
+            return redirect('quizzes') if not cls.visible_lessons(request.user).filter(pk=quiz.lesson_id).exists() else redirect('lesson_detail', slug=quiz.lesson.slug)
+        if cls.visible_lessons(request.user).filter(pk=quiz.lesson_id).exists():
+            return redirect('lesson_detail', slug=quiz.lesson.slug)
+        return redirect('quizzes')
+
     # Deadline rule (students only): after the deadline nobody can submit unless the
     # Mentor allows late work or gave this student an extension. Checked on the server.
     role = Profile.objects.filter(user=request.user).values_list('role', flat=True).first()
@@ -396,34 +467,33 @@ def quiz_detail(request, quiz_id):
         }, status=403 if request.method == 'POST' else 200)
 
     if request.method == 'POST':
-        correct_count = 0
-        for question in questions:
-            selected_id = request.POST.get(f'question_{question.id}')
-            if selected_id and question.choices.filter(id=selected_id, is_correct=True).exists():
-                correct_count += 1
+        # One tap = one attempt. The page puts a one-time token in the form; if the same
+        # token arrives again (double click, refresh, slow connection) we show the attempt
+        # that was already saved instead of creating a second one.
+        token = (request.POST.get('submit_token') or '')[:64]
+        used = request.session.get('quiz_tokens', {})
+        attempt = None
+        if token and token in used:
+            attempt = QuizAttempt.objects.filter(pk=used[token], user=request.user, quiz=quiz).first()
+        if attempt is None:
+            attempt = quizzing.submit_attempt(
+                request.user, quiz, request.POST,
+                started_at=_read_start_time(request, quiz),
+                deadline_at=student_deadline,       # the deadline that applied to this student
+            )
+            # taken_at (the submission time) is stamped automatically by the model.
+            if token:
+                used[token] = attempt.pk
+                request.session['quiz_tokens'] = dict(list(used.items())[-20:])
+            request.session.pop(session_key, None)
 
-        total = questions.count()
-        score = round((correct_count / total) * 100) if total else 0
-        QuizAttempt.objects.create(
-            user=request.user, quiz=quiz, score=score,
-            started_at=_read_start_time(request, quiz),
-            correct_count=correct_count, total_questions=total,
-            deadline_at_submission=student_deadline,      # the deadline that applied to this student
-        )
-        # taken_at (the submission time) is stamped automatically by the model.
-        request.session.pop(session_key, None)
-
-        if score >= 50:
-            profile, _ = Profile.objects.get_or_create(user=request.user)
-            profile.update_streak()
-
-        check_and_award_badges(request.user)
+            if attempt.is_pending or attempt.score >= 50:
+                profile, _ = Profile.objects.get_or_create(user=request.user)
+                profile.update_streak()
+            check_and_award_badges(request.user)
 
         first = exams.first_attempts_by_quiz(request.user, [quiz]).get(quiz.id)
-        return render(request, 'quiz_result.html', {
-            'quiz': quiz, 'score': score, 'correct_count': correct_count, 'total': total,
-            'state': exams.student_quiz_state(quiz, first, now, acc),
-        })
+        return render(request, 'quiz_result.html', _result_context(quiz, attempt, exams.student_quiz_state(quiz, first, now, acc)))
 
     # Remember when the student first opened it (a refresh must not reset this).
     if session_key not in request.session:
@@ -435,7 +505,29 @@ def quiz_detail(request, quiz_id):
         'state': exams.student_quiz_state(quiz, first, now, acc),
         'eff_deadline': student_deadline,
         'past_deadline': bool(student_deadline and now > student_deadline),
+        'submit_token': secrets.token_urlsafe(18),
+        'total_points': quiz.total_points,
     })
+
+
+def _result_context(quiz, attempt, state):
+    return {
+        'quiz': quiz, 'attempt': attempt, 'answers': list(attempt.answers.all()),
+        'score': attempt.score, 'correct_count': attempt.correct_count, 'total': attempt.total_questions,
+        'state': state,
+    }
+
+
+@login_required
+@local_time
+def quiz_attempt_result(request, quiz_id, attempt_id):
+    """A student's own result for one attempt (including essays graded later)."""
+    quiz = get_object_or_404(cls.visible_quizzes(request.user), id=quiz_id)
+    attempt = get_object_or_404(QuizAttempt, pk=attempt_id, quiz=quiz, user=request.user)   # never someone else's
+    now = timezone.now()
+    first = exams.first_attempts_by_quiz(request.user, [quiz]).get(quiz.id)
+    acc = QuizAccommodation.objects.filter(quiz=quiz, student=request.user).first()
+    return render(request, 'quiz_result.html', _result_context(quiz, attempt, exams.student_quiz_state(quiz, first, now, acc)))
 
 
 # ---------------------------------------------------------
@@ -537,8 +629,25 @@ def _unique_slug(title, model, exclude_pk=None):
 @login_required
 @role_required(Profile.ROLE_MENTOR)
 def mentor_lessons(request):
-    lessons = Lesson.objects.filter(created_by=request.user).select_related('classroom').order_by('order')
+    lessons = Lesson.objects.filter(created_by=request.user).select_related('classroom', 'file').order_by('order')
     return render(request, 'mentor_lessons.html', {'lessons': lessons})
+
+
+def _save_lesson_file(request, form, lesson):
+    """Store / replace / remove the lesson's file after the lesson itself was saved."""
+    upload = form.cleaned_data.get('file')
+    if upload:
+        try:
+            lf = lessonfiles.attach(lesson, upload, request.user)
+        except lessonfiles.UploadRejected as exc:
+            messages.error(request, f'The lesson was saved, but the file was not: {exc}')
+            return
+        if lf.conversion_status == LessonFile.CONV_READY:
+            messages.success(request, f'File "{lf.original_name}" attached ({lf.page_count} page{"s" if lf.page_count != 1 else ""}).')
+        else:
+            messages.warning(request, f'File "{lf.original_name}" was saved but cannot be shown page by page: {lf.conversion_message}')
+    elif form.cleaned_data.get('remove_file'):
+        LessonFile.objects.filter(lesson=lesson).first() and LessonFile.objects.get(lesson=lesson).delete()
 
 
 @login_required
@@ -546,18 +655,19 @@ def mentor_lessons(request):
 def mentor_lesson_create(request):
     cls.ensure_default_classroom(request.user)
     if request.method == 'POST':
-        form = LessonForm(request.POST, mentor_user=request.user)
+        form = LessonForm(request.POST, request.FILES, mentor_user=request.user)
         if form.is_valid():
             lesson = form.save(commit=False)
             lesson.created_by = request.user
             lesson.slug = _unique_slug(lesson.title, Lesson)
             lesson.save()
+            _save_lesson_file(request, form, lesson)
             messages.success(request, f'Lesson "{lesson.title}" created.')
             return redirect('mentor_lessons')
     else:
         form = LessonForm(mentor_user=request.user, initial=_preselected_classroom(request))
 
-    return render(request, 'mentor_lesson_form.html', {'form': form, 'is_edit': False})
+    return render(request, 'mentor_lesson_form.html', {'form': form, 'is_edit': False, 'max_mb': lessonfiles.max_bytes() // 1048576})
 
 
 @login_required
@@ -566,18 +676,20 @@ def mentor_lesson_edit(request, pk):
     lesson = get_object_or_404(Lesson, pk=pk, created_by=request.user)
 
     if request.method == 'POST':
-        form = LessonForm(request.POST, instance=lesson, mentor_user=request.user)
+        form = LessonForm(request.POST, request.FILES, instance=lesson, mentor_user=request.user)
         if form.is_valid():
             updated = form.save(commit=False)
             if updated.title != lesson.title:
                 updated.slug = _unique_slug(updated.title, Lesson, exclude_pk=lesson.pk)
             updated.save()
+            _save_lesson_file(request, form, updated)
             messages.success(request, f'Lesson "{updated.title}" updated.')
             return redirect('mentor_lessons')
     else:
         form = LessonForm(instance=lesson, mentor_user=request.user)
 
-    return render(request, 'mentor_lesson_form.html', {'form': form, 'is_edit': True, 'lesson': lesson})
+    return render(request, 'mentor_lesson_form.html', {'form': form, 'is_edit': True, 'lesson': lesson,
+                                                       'lf': LessonFile.objects.filter(lesson=lesson).first(), 'max_mb': lessonfiles.max_bytes() // 1048576})
 
 
 @login_required
@@ -652,32 +764,103 @@ def mentor_quiz_delete(request, pk):
     return render(request, 'mentor_confirm_delete.html', {'object_label': f'quiz "{quiz.title}"', 'cancel_url': 'mentor_quizzes'})
 
 
+def _question_initial(q):
+    """Values to pre-fill the editor when editing an existing question."""
+    data = {'qtype': q.qtype, 'text': q.text, 'points': q.points, 'allow_multiple': q.allow_multiple,
+            'case_sensitive': q.case_sensitive, 'guide': q.guide, 'choices': [], 'blanks': {}}
+    if q.is_mc:
+        data['choices'] = [{'text': c.text, 'correct': c.is_correct} for c in q.choices.all().order_by('id')]
+    if q.is_fill:
+        for b in q.blank_answers.all().order_by('blank_number', 'id'):
+            data['blanks'].setdefault(b.blank_number, []).append(b.text)
+    return data
+
+
+def _editor_state(post=None, question=None):
+    """What the editor shows on first load, after an error, or when editing."""
+    if post is not None:
+        texts = post.getlist('choice_text')
+        correct = set(post.getlist('choice_correct'))
+        return {
+            'qtype': post.get('qtype', 'MC'), 'text': post.get('text', ''), 'points': post.get('points', '1'),
+            'allow_multiple': bool(post.get('allow_multiple')), 'case_sensitive': bool(post.get('case_sensitive')),
+            'guide': post.get('guide', ''),
+            'choices': [{'text': t, 'correct': str(i) in correct} for i, t in enumerate(texts)] or [{}, {}, {}, {}],
+            'blanks': {i: post.get(f'blank_answers_{i}', '') for i in range(1, quizzing.MAX_BLANKS + 1)},
+        }
+    if question is not None:
+        d = _question_initial(question)
+        d['blanks'] = {k: '\n'.join(v) for k, v in d['blanks'].items()}
+        return d
+    return {'qtype': 'MC', 'text': '', 'points': 1, 'allow_multiple': False, 'case_sensitive': False,
+            'guide': '', 'choices': [{}, {}, {}, {}], 'blanks': {}}
+
+
+def _question_rows(quiz):
+    rows = []
+    for n, q in enumerate(quiz.questions.prefetch_related('choices', 'blank_answers').order_by('id'), start=1):
+        rows.append({'n': n, 'q': q, 'problems': quizzing.question_problems(q),
+                     'blanks': _blank_lines(q) if q.is_fill else []})
+    return rows
+
+
+def _blank_lines(q):
+    out = {}
+    for b in q.blank_answers.all():
+        out.setdefault(b.blank_number, []).append(b.text)
+    return [{'n': k, 'answers': v} for k, v in sorted(out.items())]
+
+
+def _editor_context(quiz, form, state, editing=None):
+    rows = _question_rows(quiz)
+    return {
+        'quiz': quiz, 'rows': rows, 'form': form, 'state': state, 'editing': editing,
+        'total_points': quiz.total_points, 'problems': quizzing.quiz_problems(quiz),
+        'type_choices': Question.TYPE_CHOICES, 'blank_token': Question.BLANK_TOKEN,
+        'attempt_count': quiz.attempts.count(), 'max_blanks': quizzing.MAX_BLANKS,
+        'max_choices': quizzing.MAX_CHOICES,
+        'blank_boxes': [{'n': i, 'saved': state['blanks'].get(i, '')} for i in range(1, quizzing.MAX_BLANKS + 1)],
+    }
+
+
 @login_required
 @role_required(Profile.ROLE_MENTOR)
 def mentor_quiz_questions(request, pk):
-    """List existing questions for a quiz the Mentor owns, and add new ones."""
+    """List the questions of a quiz the Mentor owns, and add new ones of any type."""
     quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
-    questions = quiz.questions.prefetch_related('choices').all()
 
     if request.method == 'POST':
-        form = QuestionForm(request.POST)
+        form = QuestionEditForm(request.POST)
         if form.is_valid():
-            question = Question.objects.create(quiz=quiz, text=form.cleaned_data['text'])
-            correct = form.cleaned_data['correct_choice']
-            for i in range(1, 5):
-                Choice.objects.create(
-                    question=question,
-                    text=form.cleaned_data[f'choice_{i}'],
-                    is_correct=(str(i) == correct),
-                )
+            quizzing.save_question(quiz, form.cleaned_data)
             messages.success(request, 'Question added.')
             return redirect('mentor_quiz_questions', pk=quiz.pk)
+        state = _editor_state(post=request.POST)
     else:
-        form = QuestionForm()
+        form, state = QuestionEditForm(), _editor_state()
 
-    return render(request, 'mentor_quiz_questions.html', {
-        'quiz': quiz, 'questions': questions, 'form': form,
-    })
+    return render(request, 'mentor_quiz_questions.html', _editor_context(quiz, form, state))
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+def mentor_question_edit(request, pk, question_id):
+    """Change a question. Students' earlier answers keep the wording and marks they were
+    graded with, so editing never changes a graded attempt."""
+    quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
+    question = get_object_or_404(Question, pk=question_id, quiz=quiz)
+
+    if request.method == 'POST':
+        form = QuestionEditForm(request.POST)
+        if form.is_valid():
+            quizzing.save_question(quiz, form.cleaned_data, instance=question)
+            messages.success(request, 'Question updated. Answers already submitted keep the version they were graded with.')
+            return redirect('mentor_quiz_questions', pk=quiz.pk)
+        state = _editor_state(post=request.POST)
+    else:
+        form, state = QuestionEditForm(), _editor_state(question=question)
+
+    return render(request, 'mentor_quiz_questions.html', _editor_context(quiz, form, state, editing=question))
 
 
 @login_required
@@ -686,9 +869,71 @@ def mentor_question_delete(request, pk, question_id):
     quiz = get_object_or_404(Quiz, pk=pk, created_by=request.user)
     question = get_object_or_404(Question, pk=question_id, quiz=quiz)
     if request.method == 'POST':
-        question.delete()
+        question.delete()                 # students' stored answers keep their own copy
+        quizzing.bump_version(quiz)
         messages.success(request, 'Question deleted.')
+        if quiz.is_published and not quiz.questions.exists():
+            Quiz.objects.filter(pk=quiz.pk).update(is_published=False)
+            messages.warning(request, 'The quiz has no questions now, so it was moved back to draft.')
     return redirect('mentor_quiz_questions', pk=quiz.pk)
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR, Profile.ROLE_ADMIN)
+@local_time
+def mentor_quiz_preview(request, pk):
+    """The quiz exactly as a student sees it, with nothing that can be submitted."""
+    profile = get_object_or_404(Profile, user=request.user)
+    quiz = get_object_or_404(Quiz, pk=pk) if profile.role == Profile.ROLE_ADMIN \
+        else get_object_or_404(Quiz, pk=pk, created_by=request.user)
+    return render(request, 'quiz_detail.html', {
+        'quiz': quiz, 'questions': quiz.questions.prefetch_related('choices').order_by('id'),
+        'preview': True, 'total_points': quiz.total_points,
+        'state': {'label': 'Preview', 'css': 'bg-slate-100 text-slate-600 border-slate-200'},
+        'eff_deadline': quiz.deadline_datetime, 'past_deadline': False,
+    })
+
+
+# ---------------------------------------------------------
+# Mentor — grading essays
+# ---------------------------------------------------------
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+@local_time
+def mentor_grading(request):
+    """Attempts of the Mentor's own quizzes that still wait for essay marking."""
+    pending = (QuizAttempt.objects
+               .filter(quiz__created_by=request.user, grading_status='pending')
+               .select_related('quiz', 'user__profile').order_by('taken_at', 'id'))
+    return render(request, 'mentor_grading.html', {'attempts': pending})
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR)
+@local_time
+def mentor_grade_attempt(request, attempt_id):
+    # Own quizzes only: any other attempt id is a 404.
+    attempt = get_object_or_404(QuizAttempt.objects.select_related('quiz', 'user__profile'),
+                                pk=attempt_id, quiz__created_by=request.user)
+    if request.method == 'POST':
+        entries = {}
+        for a in attempt.answers.filter(qtype=Question.TYPE_ESSAY, answered=True):
+            entries[a.id] = (request.POST.get(f'points_{a.id}', ''), request.POST.get(f'feedback_{a.id}', ''))
+        try:
+            quizzing.grade_essays(attempt, request.user, entries)
+        except quizzing.GradeError as exc:
+            messages.error(request, str(exc))
+        else:
+            AuditLog.record(request.user, 'essay_graded', target_user=attempt.user,
+                            details=f'quiz {attempt.quiz_id}, attempt {attempt.pk}')
+            attempt.refresh_from_db()
+            if attempt.is_pending:
+                messages.info(request, 'Saved. The grade stays Pending until every essay has marks.')
+            else:
+                messages.success(request, f'Graded. Final score: {attempt.score}%. The student was notified.')
+                return redirect('mentor_grading')
+        return redirect('mentor_grade_attempt', attempt_id=attempt.pk)
+    return render(request, 'mentor_grade_attempt.html', {'attempt': attempt, 'answers': list(attempt.answers.all())})
 
 
 # ===========================================================
@@ -1061,11 +1306,14 @@ def mentor_quiz_print(request, pk):
 
     show_key = request.GET.get('key') == '1'
     questions = []
-    for number, q in enumerate(quiz.questions.prefetch_related('choices').order_by('id'), start=1):
+    for number, q in enumerate(quiz.questions.prefetch_related('choices', 'blank_answers').order_by('id'), start=1):
         choices = []
-        for letter, c in zip('ABCDEFGHIJ', q.choices.all().order_by('id')):
-            choices.append({'letter': letter, 'text': c.text, 'correct': c.is_correct})
-        questions.append({'number': number, 'text': q.text, 'choices': choices})
+        if q.is_mc:
+            for letter, c in zip('ABCDEFGHIJ', q.choices.all().order_by('id')):
+                choices.append({'letter': letter, 'text': c.text, 'correct': c.is_correct})
+        questions.append({'number': number, 'text': q.text, 'choices': choices, 'type': q.qtype,
+                          'points': q.points, 'multi': q.allow_multiple, 'parts': q.text_parts() if q.is_fill else [],
+                          'blanks': _blank_lines(q) if q.is_fill else []})
 
     return render(request, 'quiz_print.html', {
         'quiz': quiz,
@@ -1278,14 +1526,17 @@ def classroom_detail(request, pk):
 
     quizzes = list(room.quizzes.filter(is_published=True).order_by('id'))
     best = dict(
-        QuizAttempt.objects.filter(user=request.user, quiz__in=quizzes)
+        QuizAttempt.objects.filter(user=request.user, quiz__in=quizzes, grading_status='finalized')
         .values('quiz_id').annotate(b=Max('score')).values_list('quiz_id', 'b')
     )
+    pending_ids, latest = _pending_and_latest(request.user, quizzes)
     firsts = exams.first_attempts_by_quiz(request.user, quizzes)
     accs = deadlines.accommodations_for(request.user, quizzes)
     now = timezone.now()
     for quiz in quizzes:
         quiz.best_score = best.get(quiz.id)
+        quiz.has_pending = quiz.id in pending_ids
+        quiz.latest_attempt_id = latest.get(quiz.id)
         quiz.state = exams.student_quiz_state(quiz, firsts.get(quiz.id), now, accs.get(quiz.id))
 
     return render(request, 'classroom_detail.html', {
@@ -1748,4 +1999,6 @@ def student_attempt(request, pk, student_id, attempt_id):
         'enrollment': e, 'attempt': attempt, 'quiz': attempt.quiz,
         'grading': prog.GRADING_LABELS[prog.attempt_grading_status(attempt)],
         'type': prog.quiz_type_label(attempt.quiz),
+        'answers': list(attempt.answers.all()),
+        'can_grade': attempt.is_pending and attempt.quiz.created_by_id == request.user.id,
     })

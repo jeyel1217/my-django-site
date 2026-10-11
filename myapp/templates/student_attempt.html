@@ -9,10 +9,14 @@
             <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">SUBMITTED</dt><dd>{{ attempt.taken_at|date:"M j, Y – g:i:s A" }} <span class="text-xs text-slate-400">(Philippine Time)</span></dd></div>
             <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">STARTED</dt><dd>{% if attempt.started_at %}{{ attempt.started_at|date:"M j, Y – g:i A" }}{% else %}&mdash;{% endif %}</dd></div>
             <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">DEADLINE THAT APPLIED</dt><dd>{% if attempt.effective_deadline %}{{ attempt.effective_deadline|date:"M j, Y – g:i A" }}{% else %}No deadline{% endif %}{% if attempt.is_late %} <strong class="text-red-600">(late)</strong>{% endif %}</dd></div>
-            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">SCORE</dt><dd class="font-bold">{% if attempt.correct_count is not None %}{{ attempt.correct_count }}/{{ attempt.total_questions }} &middot; {% endif %}{{ attempt.score }}%</dd></div>
+            <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">SCORE</dt><dd class="font-bold">{% if attempt.max_points %}{{ attempt.earned_points|floatformat:'-2' }}/{{ attempt.max_points|floatformat:'-2' }} pts &middot; {% elif attempt.correct_count is not None %}{{ attempt.correct_count }}/{{ attempt.total_questions }} &middot; {% endif %}{% if attempt.is_pending %}Pending{% else %}{{ attempt.score }}%{% endif %}</dd></div>
             <div><dt class="text-[10px] font-bold text-slate-400 tracking-wider">GRADING</dt><dd><span class="inline-block text-xs font-semibold px-2 py-1 rounded border {{ grading.1 }}">{{ grading.0 }}</span></dd></div>
         </dl>
-        <p class="text-xs text-slate-400">Question-by-question answers are recorded for quizzes taken after the quiz-types update. Earlier attempts keep only their score and times.</p>
+        {% if can_grade %}<a href="{% url 'mentor_grade_attempt' attempt.pk %}" class="inline-block bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 text-sm">Grade essays</a>{% endif %}
+    </div>
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <h3 class="text-sm font-extrabold text-slate-700 mb-3">Answers</h3>
+        {% include '_attempt_answers.html' with staff=True %}
     </div>
 </div>
 {% endblock %}

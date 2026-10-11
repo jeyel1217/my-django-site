@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-4">
+    <div>
+        <h2 class="text-2xl font-extrabold text-slate-800">Essays to Grade</h2>
+        <p class="text-slate-500 text-sm mt-1">Submissions of your own quizzes that contain written answers waiting for your marks. A student's grade stays <strong>Pending</strong> until every essay is marked.</p>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-slate-500 text-xs"><tr>
+                <th class="text-left px-5 py-3">STUDENT</th><th class="text-left px-5 py-3">QUIZ</th><th class="text-left px-5 py-3">SUBMITTED</th><th class="px-5 py-3"></th>
+            </tr></thead>
+            <tbody class="divide-y divide-slate-100">
+            {% for a in attempts %}
+                <tr>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ a.user.profile.display_name }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ a.quiz.title }}</td>
+                    <td class="px-5 py-3 text-slate-500">{{ a.taken_at|date:"M j, Y – g:i A" }}</td>
+                    <td class="px-5 py-3 text-right"><a href="{% url 'mentor_grade_attempt' a.pk %}" class="text-red-700 font-semibold hover:underline">Grade</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="p-10 text-center text-slate-400">Nothing waiting. All essays are graded.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

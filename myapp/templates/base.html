@@ -89,6 +89,9 @@
                     <a href="{% url 'mentor_quizzes' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_quiz' in request.resolver_match.url_name or 'mentor_question' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-pen-to-square w-5 text-center"></i> Manage Quizzes
                     </a>
+                    <a href="{% url 'mentor_grading' %}" class="flex items-center gap-4 px-4 py-3 {% if 'mentor_grad' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
+                        <i class="fa-solid fa-pen-ruler w-5 text-center"></i> Essays to Grade
+                    </a>
                     <a href="{% url 'staff_students' %}" class="flex items-center gap-4 px-4 py-3 {% if 'staff_students' in request.resolver_match.url_name or 'student_' in request.resolver_match.url_name %}bg-red-900{% else %}hover:bg-red-700/50{% endif %} rounded-xl text-sm text-red-100">
                         <i class="fa-solid fa-user-graduate w-5 text-center"></i> My Students
                     </a>

@@ -26,13 +26,13 @@ GRADING_LABELS = {
 
 
 def attempt_grading_status(attempt):
-    """Finalized unless the attempt still waits for a person to grade it.
-    (All current attempts are multiple choice, which is graded on submit.)"""
-    return getattr(attempt, 'grading_status', None) or GRADED
+    """Finalized unless the attempt still waits for a person to grade it (essays)."""
+    return PENDING if getattr(attempt, 'grading_status', None) == 'pending' else GRADED
 
 
 def quiz_type_label(quiz):
-    return 'Multiple Choice'
+    from . import quizzing
+    return quizzing.quiz_type_label(quiz)
 
 
 # --- who may be looked at ----------------------------------------------------
@@ -134,9 +134,11 @@ def full_report(student, classroom, now=None):
                'best': None, 'earned': None, 'maximum': None, 'percentage': None,
                'grading': None, 'grading_label': GRADING_LABELS[None]}
         if mine:
-            best = max(mine, key=lambda a: (a.score, -a.id))
-            earned = best.correct_count
-            maximum = best.total_questions
+            # Only finalized attempts have an official score; a pending one never counts as 0.
+            done = [a for a in mine if attempt_grading_status(a) == GRADED]
+            best = max(done, key=lambda a: (a.score, -a.id)) if done else mine[-1]
+            earned = best.earned_points if best.earned_points is not None else best.correct_count
+            maximum = best.max_points if best.max_points is not None else best.total_questions
             row.update(best=best, earned=earned, maximum=maximum,
                        grading=attempt_grading_status(best))
             row['grading_label'] = GRADING_LABELS[row['grading']]

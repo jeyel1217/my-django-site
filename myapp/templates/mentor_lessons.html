@@ -28,7 +28,8 @@
                 {% for lesson in lessons %}
                 <tr>
                     <td class="px-5 py-3 text-slate-600">{{ lesson.order }}</td>
-                    <td class="px-5 py-3 font-semibold text-slate-800">{{ lesson.title }}</td>
+                    <td class="px-5 py-3 font-semibold text-slate-800">{{ lesson.title }}
+                        {% if lesson.file %}<span class="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded border {% if lesson.file.conversion_status == 'READY' %}bg-sky-50 text-sky-700 border-sky-200{% else %}bg-amber-50 text-amber-700 border-amber-200{% endif %}" title="{{ lesson.file.original_name }}">{{ lesson.file.kind }}{% if lesson.file.conversion_status != 'READY' %} !{% endif %}</span>{% endif %}</td>
                     <td class="px-5 py-3 text-slate-600 text-xs">{% if lesson.classroom %}{{ lesson.classroom.name }}{% else %}<span class="text-amber-600 font-semibold">Not assigned</span>{% endif %}</td>
                     <td class="px-5 py-3">
                         {% if lesson.is_published %}
@@ -38,6 +39,7 @@
                         {% endif %}
                     </td>
                     <td class="px-5 py-3 text-right space-x-3">
+                        <a href="{% url 'lesson_detail' lesson.slug %}" class="text-slate-500 hover:text-red-700 hover:underline font-semibold">Preview</a>
                         <a href="{% url 'mentor_lesson_edit' lesson.pk %}" class="text-red-700 hover:underline font-semibold">Edit</a>
                         <a href="{% url 'mentor_lesson_delete' lesson.pk %}" class="text-slate-400 hover:text-red-600 hover:underline font-semibold">Delete</a>
                     </td>

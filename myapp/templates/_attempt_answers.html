@@ -1,0 +1,50 @@
+{# Question-by-question review. Set staff=True to also reveal the correct answers and the grader's guide. #}
+<div class="space-y-4">
+{% for a in answers %}
+    <div class="border border-slate-200 rounded-lg p-4 bg-white">
+        <div class="flex flex-wrap items-start justify-between gap-2">
+            <p class="font-semibold text-slate-800 text-sm">{{ a.position }}.
+                {% if a.qtype == 'FILL' %}{{ a.question_text }}{% else %}{{ a.question_text }}{% endif %}</p>
+            <div class="flex items-center gap-2 text-xs">
+                <span class="text-slate-400">{{ a.type_name }}</span>
+                <span class="inline-block font-semibold px-2 py-0.5 rounded border {{ a.status_css }}">{{ a.status_label }}</span>
+                <span class="font-bold text-slate-700">{% if a.points_awarded is None %}&mdash;{% else %}{{ a.points_awarded|floatformat:"-2" }}{% endif %} / {{ a.max_points|floatformat:"-2" }} pt{{ a.max_points|pluralize }}</span>
+            </div>
+        </div>
+
+        {% if a.qtype == 'MC' %}
+            <ul class="mt-2 space-y-1 text-sm">
+            {% for c in a.review %}
+                <li class="flex items-start gap-2 {% if c.picked and staff %}{% if c.correct %}text-emerald-700 font-semibold{% else %}text-red-600{% endif %}{% elif c.picked %}text-slate-800 font-semibold{% else %}text-slate-500{% endif %}">
+                    <span class="w-4 shrink-0">{% if c.picked %}<i class="fa-solid fa-circle-dot"></i>{% else %}<i class="fa-regular fa-circle"></i>{% endif %}</span>
+                    <span>{{ c.text }}{% if c.picked and not staff %} <span class="text-xs text-slate-400 font-normal">(your answer)</span>{% endif %}{% if staff and c.picked %} <span class="text-xs text-slate-400 font-normal">(chosen)</span>{% endif %}{% if staff and c.correct %} <span class="text-emerald-600 text-xs font-semibold">&check; correct</span>{% endif %}</span>
+                </li>
+            {% endfor %}
+            </ul>
+            {% if not a.answered %}<p class="text-xs text-slate-400 mt-1">Nothing was selected.</p>{% endif %}
+
+        {% elif a.qtype == 'FILL' %}
+            <ul class="mt-2 space-y-1 text-sm">
+            {% for b in a.review %}
+                <li class="{% if b.ok %}text-emerald-700{% else %}text-red-600{% endif %}">
+                    Blank {{ b.n }}: <strong>{% if b.given %}{{ b.given }}{% else %}<em class="font-normal">(empty)</em>{% endif %}</strong>
+                    {% if b.ok %}<i class="fa-solid fa-check"></i>{% elif staff %}<span class="text-slate-500 text-xs">&nbsp;accepted: {{ b.accepted|join:", " }}</span>{% endif %}
+                </li>
+            {% endfor %}
+            </ul>
+
+        {% else %}
+            {% if a.answered %}
+                <div class="mt-2 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded p-3 whitespace-pre-wrap break-words">{{ a.answer.text }}</div>
+            {% else %}
+                <p class="text-xs text-slate-400 mt-1">Nothing was written.</p>
+            {% endif %}
+            {% if staff and a.snapshot.guide %}<p class="text-xs text-slate-500 mt-2"><strong>Grading guide:</strong> {{ a.snapshot.guide }}</p>{% endif %}
+        {% endif %}
+
+        {% if a.feedback %}<p class="mt-2 text-sm bg-sky-50 border border-sky-200 text-sky-800 rounded p-2"><strong>Mentor's feedback:</strong> {{ a.feedback }}</p>{% endif %}
+    </div>
+{% empty %}
+    <p class="text-sm text-slate-400">The answers of this attempt were not recorded (it was taken before question types existed). Only the score and times are kept.</p>
+{% endfor %}
+</div>

@@ -110,3 +110,12 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 import os as _os
 SITE_URL = _os.environ.get('SITE_URL', 'https://jcad.pythonanywhere.com')
 ADMIN_CONTACT_EMAIL = _os.environ.get('ADMIN_CONTACT_EMAIL', 'jcadlearn@gmail.com')
+
+
+# --- Lesson files (Phase 4C) -------------------------------------------------
+# Uploaded lesson files are kept here, NOT under media/ or static/, so the web server never serves
+# them directly; they are only handed out by views that first check who is asking.
+PRIVATE_MEDIA_ROOT = os.environ.get('PRIVATE_MEDIA_ROOT', os.path.join(BASE_DIR, 'private_media'))
+LESSON_FILE_MAX_MB = 20            # largest upload accepted
+LESSON_CONVERT_TIMEOUT = 120       # seconds allowed for turning Word / PowerPoint into PDF
+# LIBREOFFICE_PATH = r'C:\Program Files\LibreOffice\program\soffice.exe'   # only if it is not found automatically

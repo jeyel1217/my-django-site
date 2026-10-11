@@ -147,11 +147,16 @@ def build_progress(quiz, show='all', now=None):
         }
         if mine:
             first = mine[0]
-            best = max(mine, key=lambda a: (a.score, -a.pk))
+            done = [a for a in mine if a.grading_status != 'pending']
+            best = max(done, key=lambda a: (a.score, -a.pk)) if done else mine[-1]
             status = staff_status_for_attempt(quiz, first)
             row.update(first=first, best=best, started_at=first.started_at,
-                       submitted_at=first.taken_at, percentage=best.score)
-            if best.correct_count is not None and best.total_questions:
+                       submitted_at=first.taken_at, percentage=best.score if done else None)
+            if not done:
+                row['score_text'] = 'Pending grading'
+            elif best.earned_points is not None and best.max_points:
+                row['score_text'] = f"{best.earned_points.normalize():f}/{best.max_points.normalize():f} pts"
+            elif best.correct_count is not None and best.total_questions:
                 row['score_text'] = f"{best.correct_count}/{best.total_questions}"
             summary['completed'] += 1
             if status == ON_TIME:

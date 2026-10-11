@@ -9,90 +9,254 @@
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
             <h2 class="text-2xl font-extrabold text-slate-800">{{ quiz.title }}</h2>
-            <p class="text-slate-500 text-sm mt-1">Manage questions for this quiz. Each question needs exactly 4 choices.</p>
+            <p class="text-slate-500 text-sm mt-1">Build the quiz: add questions of any type, check the preview, then publish.</p>
         </div>
-        <div class="flex gap-2">
-            <a href="{% url 'mentor_quiz_print' quiz.pk %}" target="_blank"
-               class="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 transition text-sm">
-                <i class="fa-solid fa-print"></i> Print Quiz
-            </a>
-            <a href="{% url 'mentor_exam_progress' quiz.pk %}"
-               class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">
-                Student Progress
-            </a>
+        <div class="flex flex-wrap gap-2">
+            <a href="{% url 'mentor_quiz_preview' quiz.pk %}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50"><i class="fa-regular fa-eye"></i> Preview</a>
+            <a href="{% url 'mentor_quiz_print' quiz.pk %}" target="_blank" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50"><i class="fa-solid fa-print"></i> Print</a>
+            <a href="{% url 'mentor_exam_progress' quiz.pk %}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Student Progress</a>
         </div>
     </div>
 
-    <!-- Existing questions -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
-        {% for question in questions %}
-        <div class="p-5">
-            <div class="flex items-start justify-between">
-                <p class="font-semibold text-slate-800">{{ forloop.counter }}. {{ question.text }}</p>
-                <form method="POST" action="{% url 'mentor_question_delete' quiz.pk question.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="text-xs text-slate-400 hover:text-red-600 font-semibold">Delete</button>
-                </form>
+    {# Steps: 1 details, 2 questions, 3 review & publish #}
+    <ol class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+        <li class="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800"><i class="fa-solid fa-check"></i> 1. Details</li>
+        <li class="px-3 py-1.5 rounded-full bg-red-700 text-white">2. Questions</li>
+        <li class="px-3 py-1.5 rounded-full {% if problems %}bg-slate-100 text-slate-500{% else %}bg-emerald-100 text-emerald-800{% endif %}">3. Review &amp; publish</li>
+    </ol>
+
+    {# Review + publish check #}
+    <div class="bg-white rounded-xl border {% if problems %}border-amber-300{% else %}border-emerald-300{% endif %} shadow-sm p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <p class="text-xs font-bold tracking-wider text-slate-400">REVIEW</p>
+                <p class="text-slate-800 font-semibold">{{ rows|length }} question{{ rows|length|pluralize }} &middot; {{ total_points }} point{{ total_points|pluralize }} in total
+                    <span class="text-slate-400 font-normal">&middot; status: {% if quiz.is_published %}<span class="text-emerald-600 font-semibold">Published</span>{% else %}Draft{% endif %}</span></p>
+                <p class="text-xs text-slate-400 mt-1">A student's score is their points earned divided by {{ total_points }}.</p>
             </div>
+            <a href="{% url 'mentor_quiz_edit' quiz.pk %}" class="bg-red-700 text-white font-semibold px-4 py-2 rounded-lg hover:bg-red-800 text-sm">
+                {% if quiz.is_published %}Quiz settings{% else %}Publish...{% endif %}</a>
+        </div>
+        {% if problems %}
+            <ul class="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1 list-disc list-inside">
+                {% for p in problems %}<li>{{ p }}</li>{% endfor %}
+            </ul>
+            <p class="text-xs text-slate-400 mt-2">The quiz cannot be published until these are fixed.</p>
+        {% else %}
+            <p class="mt-3 text-sm text-emerald-700"><i class="fa-solid fa-circle-check"></i> Every question is complete. This quiz is ready to publish.</p>
+        {% endif %}
+        {% if attempt_count %}
+            <p class="mt-3 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">{{ attempt_count }} attempt{{ attempt_count|pluralize }} already submitted. Editing a question never changes a graded attempt: each student's answers keep the question and marks they were graded with. Only new attempts use your changes.</p>
+        {% endif %}
+    </div>
+
+    {# Existing questions #}
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+        {% for r in rows %}
+        <div class="p-5 {% if editing and editing.pk == r.q.pk %}bg-red-50/40{% endif %}">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="font-semibold text-slate-800">{{ r.n }}. {{ r.q.text }}</p>
+                    <p class="text-xs text-slate-400 mt-1">
+                        <span class="font-semibold text-slate-500">{{ r.q.get_qtype_display }}{% if r.q.is_mc and r.q.allow_multiple %} &middot; several correct{% endif %}</span>
+                        &middot; {{ r.q.points }} pt{{ r.q.points|pluralize }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                    <a href="{% url 'mentor_question_edit' quiz.pk r.q.pk %}" class="text-xs text-slate-500 hover:text-red-700 font-semibold">Edit</a>
+                    <form method="POST" action="{% url 'mentor_question_delete' quiz.pk r.q.pk %}" onsubmit="return confirm('Delete this question? Answers already submitted keep their own copy.');">
+                        {% csrf_token %}
+                        <button type="submit" class="text-xs text-slate-400 hover:text-red-600 font-semibold">Delete</button>
+                    </form>
+                </div>
+            </div>
+
+            {% if r.q.is_mc %}
             <ul class="mt-2 space-y-1 text-sm">
-                {% for choice in question.choices.all %}
+                {% for choice in r.q.choices.all %}
                 <li class="{% if choice.is_correct %}text-emerald-600 font-semibold{% else %}text-slate-500{% endif %}">
                     {% if choice.is_correct %}<i class="fa-solid fa-check"></i>{% endif %} {{ choice.text }}
                 </li>
                 {% endfor %}
             </ul>
+            {% elif r.q.is_fill %}
+            <ul class="mt-2 space-y-1 text-sm text-slate-600">
+                {% for b in r.blanks %}<li>Blank {{ b.n }}: <span class="text-emerald-700 font-semibold">{{ b.answers|join:" / " }}</span></li>{% endfor %}
+                <li class="text-xs text-slate-400">{% if r.q.case_sensitive %}Capital letters must match.{% else %}Capital letters are ignored.{% endif %} Extra spaces are ignored.</li>
+            </ul>
+            {% else %}
+            <p class="mt-2 text-xs text-slate-500">Written answer, marked by you.{% if r.q.guide %} Guide: {{ r.q.guide }}{% endif %}</p>
+            {% endif %}
+
+            {% if r.problems %}<p class="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1"><i class="fa-solid fa-triangle-exclamation"></i> This question {{ r.problems|join:"; " }}.</p>{% endif %}
         </div>
         {% empty %}
         <div class="p-10 text-center text-slate-400">No questions yet — add your first one below.</div>
         {% endfor %}
     </div>
 
-    <!-- Add question form -->
-    <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
-        <h3 class="text-lg font-bold text-slate-800 mb-4">Add a Question</h3>
-        <form method="POST" class="space-y-4">
+    {# Add / edit a question #}
+    <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm" id="editor">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-slate-800">{% if editing %}Edit Question {% else %}Add a Question{% endif %}</h3>
+            {% if editing %}<a href="{% url 'mentor_quiz_questions' quiz.pk %}" class="text-sm text-slate-500 hover:text-red-700">Cancel</a>{% endif %}
+        </div>
+
+        {% if form.non_field_errors %}
+            <div class="mb-4 px-4 py-3 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200" role="alert">
+                {% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="POST" id="q-form" class="space-y-5">
             {% csrf_token %}
 
-            <div>
-                <label class="text-slate-500 text-xs font-semibold block mb-2">QUESTION</label>
-                {{ form.text }}
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 1</label>
-                    {{ form.choice_1 }}
-                </div>
-                <div>
-                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 2</label>
-                    {{ form.choice_2 }}
-                </div>
-                <div>
-                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 3</label>
-                    {{ form.choice_3 }}
-                </div>
-                <div>
-                    <label class="text-slate-500 text-xs font-semibold block mb-2">CHOICE 4</label>
-                    {{ form.choice_4 }}
-                </div>
-            </div>
-
-            <div>
-                <label class="text-slate-500 text-xs font-semibold block mb-2">CORRECT ANSWER</label>
-                <div class="flex gap-4">
-                    {% for radio in form.correct_choice %}
-                        <label class="flex items-center gap-2 text-sm text-slate-700">
-                            {{ radio.tag }} {{ radio.choice_label }}
-                        </label>
+            <fieldset>
+                <legend class="text-slate-500 text-xs font-semibold mb-2">QUESTION TYPE</legend>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {% for value, label in type_choices %}
+                    <label class="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer text-sm text-slate-700 hover:bg-slate-50">
+                        <input type="radio" name="qtype" value="{{ value }}" {% if state.qtype == value %}checked{% endif %}> {{ label }}
+                    </label>
                     {% endfor %}
                 </div>
+            </fieldset>
+
+            <div>
+                <label class="text-slate-500 text-xs font-semibold block mb-2" for="id_text">QUESTION</label>
+                <textarea name="text" id="id_text" rows="3" maxlength="500" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">{{ state.text }}</textarea>
+                {% if form.text.errors %}<p class="text-xs text-red-600 mt-1">{{ form.text.errors|join:" " }}</p>{% endif %}
+                <div data-for="FILL" class="mt-2 text-xs text-slate-500">
+                    Type <code class="bg-slate-100 px-1 rounded">{{ blank_token }}</code> where the answer goes, e.g. "Java is a {{ blank_token }} language."
+                    <button type="button" id="insert-blank" class="ml-1 px-2 py-0.5 rounded border border-slate-300 text-slate-600 font-semibold hover:bg-slate-50">Insert blank</button>
+                </div>
             </div>
 
-            <button type="submit"
-                class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
-                Add Question
+            <div class="grid grid-cols-2 gap-4 max-w-xs">
+                <div>
+                    <label class="text-slate-500 text-xs font-semibold block mb-2" for="id_points">POINTS</label>
+                    <input type="number" name="points" id="id_points" min="1" max="100" value="{{ state.points }}" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    {% if form.points.errors %}<p class="text-xs text-red-600 mt-1">{{ form.points.errors|join:" " }}</p>{% endif %}
+                </div>
+            </div>
+
+            {# Multiple choice #}
+            <div data-for="MC" class="space-y-3">
+                <label class="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="allow_multiple" id="allow-multiple" {% if state.allow_multiple %}checked{% endif %}> More than one correct answer (students tick all that apply)
+                </label>
+                <p class="text-xs text-slate-400" id="mc-hint"></p>
+                <div id="choices" class="space-y-2">
+                    {% for c in state.choices %}
+                    <div class="choice-row flex items-center gap-2">
+                        <input type="checkbox" name="choice_correct" value="{{ forloop.counter0 }}" class="h-4 w-4 shrink-0" title="Correct answer" {% if c.correct %}checked{% endif %}>
+                        <input type="text" name="choice_text" maxlength="300" value="{{ c.text|default:'' }}" placeholder="Choice {{ forloop.counter }}" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <button type="button" class="remove-choice text-slate-400 hover:text-red-600 px-2" title="Remove choice" aria-label="Remove choice">&times;</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="add-choice" class="text-sm text-red-700 font-semibold hover:underline">+ Add choice</button>
+            </div>
+
+            {# Fill in the blank #}
+            <div data-for="FILL" class="space-y-3">
+                <div id="blank-boxes" class="space-y-3">
+                    {% for bb in blank_boxes %}
+                    <div class="blank-box" data-n="{{ bb.n }}" style="display:none">
+                        <label class="text-slate-500 text-xs font-semibold block mb-1">ACCEPTED ANSWERS FOR BLANK {{ bb.n }} <span class="font-normal text-slate-400">(one per line)</span></label>
+                        <textarea name="blank_answers_{{ bb.n }}" rows="2" maxlength="800" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">{{ bb.saved }}</textarea>
+                    </div>
+                    {% endfor %}
+                </div>
+                <p id="blank-none" class="text-xs text-slate-400">Add <code>{{ blank_token }}</code> to the question to enter its accepted answers.</p>
+                <label class="flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="case_sensitive" {% if state.case_sensitive %}checked{% endif %}> Capital letters must match exactly
+                </label>
+                <p class="text-xs text-slate-400">Extra spaces before, after and between words are always ignored. Points are shared equally between the blanks.</p>
+            </div>
+
+            {# Essay #}
+            <div data-for="ESSAY" class="space-y-2">
+                <label class="text-slate-500 text-xs font-semibold block" for="id_guide">GRADING GUIDE (optional, only you see it)</label>
+                <textarea name="guide" id="id_guide" rows="3" maxlength="2000" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="What a good answer should mention...">{{ state.guide }}</textarea>
+                <p class="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-lg p-2">Essays are never marked automatically. A student's overall grade stays <strong>Pending</strong> until you mark every essay in <a class="underline" href="{% url 'mentor_grading' %}">Essays to Grade</a>.</p>
+            </div>
+
+            <button type="submit" class="bg-red-700 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-red-800 transition text-sm">
+                {% if editing %}Save Changes{% else %}Add Question{% endif %}
             </button>
         </form>
     </div>
 </div>
+
+<script>
+(function () {
+    var form = document.getElementById('q-form');
+    var box = document.getElementById('choices');
+    var multi = document.getElementById('allow-multiple');
+    var text = document.getElementById('id_text');
+    var TOKEN = '[blank]', MAXC = {{ max_choices }};
+
+    function type() { return form.querySelector('input[name=qtype]:checked').value; }
+    function showType() {
+        var t = type();
+        form.querySelectorAll('[data-for]').forEach(function (el) { el.style.display = el.getAttribute('data-for') === t ? '' : 'none'; });
+        syncBlanks();
+    }
+    function reindex() {
+        box.querySelectorAll('.choice-row').forEach(function (row, i) {
+            row.querySelector('input[type=checkbox]').value = i;
+            row.querySelector('input[type=text]').placeholder = 'Choice ' + (i + 1);
+        });
+        document.getElementById('add-choice').style.display = box.children.length >= MAXC ? 'none' : '';
+        document.getElementById('mc-hint').textContent = multi.checked
+            ? 'Tick every correct choice (at least two). Students must tick exactly those to earn the points.'
+            : 'Tick the one correct choice.';
+    }
+    box.addEventListener('click', function (e) {
+        if (!e.target.classList.contains('remove-choice')) { return; }
+        if (box.children.length <= 2) { return; }
+        e.target.closest('.choice-row').remove(); reindex();
+    });
+    box.addEventListener('change', function (e) {
+        if (!multi.checked && e.target.type === 'checkbox' && e.target.checked) {
+            box.querySelectorAll('input[type=checkbox]').forEach(function (c) { if (c !== e.target) { c.checked = false; } });
+        }
+    });
+    multi.addEventListener('change', function () {
+        if (!multi.checked) {
+            var seen = false;
+            box.querySelectorAll('input[type=checkbox]').forEach(function (c) { if (c.checked) { if (seen) { c.checked = false; } seen = true; } });
+        }
+        reindex();
+    });
+    document.getElementById('add-choice').addEventListener('click', function () {
+        if (box.children.length >= MAXC) { return; }
+        var row = box.firstElementChild.cloneNode(true);
+        row.querySelector('input[type=checkbox]').checked = false;
+        row.querySelector('input[type=text]').value = '';
+        box.appendChild(row); reindex();
+    });
+
+    function syncBlanks() {
+        var n = Math.min(MAXB(), (text.value.split(TOKEN).length - 1));
+        var any = false;
+        document.querySelectorAll('.blank-box').forEach(function (b) {
+            var show = parseInt(b.getAttribute('data-n'), 10) <= n && type() === 'FILL';
+            b.style.display = show ? '' : 'none';
+            if (show) { any = true; }
+        });
+        document.getElementById('blank-none').style.display = any ? 'none' : '';
+    }
+    function MAXB() { return {{ max_blanks }}; }
+    text.addEventListener('input', syncBlanks);
+    document.getElementById('insert-blank').addEventListener('click', function () {
+        var s = text.selectionStart || text.value.length, e = text.selectionEnd || s;
+        text.value = text.value.slice(0, s) + TOKEN + text.value.slice(e);
+        text.focus(); text.selectionStart = text.selectionEnd = s + TOKEN.length; syncBlanks();
+    });
+    form.querySelectorAll('input[name=qtype]').forEach(function (r) { r.addEventListener('change', showType); });
+    reindex(); showType();
+})();
+</script>
 {% endblock %}

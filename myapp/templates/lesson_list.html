@@ -17,10 +17,13 @@
                 <div>
                     <span class="inline-block text-[10px] font-bold tracking-wider text-red-700 bg-red-50 px-2 py-1 rounded mb-3">LESSON {{ lesson.order }}</span>
                     <h3 class="text-lg font-bold text-slate-800">{{ lesson.title }}</h3>
+                    {% if lesson.file_info %}<p class="text-xs text-slate-400 mt-1"><i class="fa-regular fa-file-lines"></i> {{ lesson.file_info.kind_label }}{% if lesson.file_info.is_viewable %} &middot; {{ lesson.file_info.page_count }} page{{ lesson.file_info.page_count|pluralize }}{% endif %}</p>{% endif %}
                 </div>
                 <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 text-xs font-semibold">
                     {% if lesson.is_completed %}
                         <span class="text-emerald-600"><i class="fa-solid fa-circle-check"></i> Completed</span>
+                    {% elif lesson.status == 'in_progress' %}
+                        <span class="text-amber-600"><i class="fa-regular fa-clock"></i> In progress{% if lesson.page_of %} &middot; page {{ lesson.page_of.0 }} of {{ lesson.page_of.1 }}{% endif %}</span>
                     {% else %}
                         <span class="text-slate-400">Not started</span>
                     {% endif %}

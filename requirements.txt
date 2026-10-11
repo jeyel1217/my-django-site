@@ -4,3 +4,4 @@ pillow==12.3.0
 python-dotenv==1.2.3
 sqlparse==0.5.5
 tzdata==2026.2
+pypdf==6.20.0

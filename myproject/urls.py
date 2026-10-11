@@ -23,10 +23,13 @@ urlpatterns = [
     # Lessons (student-facing)
     path('lessons/', views.lesson_list, name='lessons'),
     path('lessons/<slug:slug>/', views.lesson_detail, name='lesson_detail'),
+    path('lessons/<slug:slug>/file/', views.lesson_file_stream, name='lesson_file'),
+    path('lessons/<slug:slug>/progress/', views.lesson_progress_save, name='lesson_progress'),
 
     # Quizzes (student-facing)
     path('quizzes/', views.quizzes_view, name='quizzes'),
     path('quizzes/<int:quiz_id>/', views.quiz_detail, name='quiz_detail'),
+    path('quizzes/<int:quiz_id>/attempts/<int:attempt_id>/', views.quiz_attempt_result, name='quiz_attempt_result'),
 
     # Badges
     path('badges/', views.badges_view, name='badges'),
@@ -61,12 +64,19 @@ urlpatterns = [
     path('mentor/lessons/<int:pk>/edit/', views.mentor_lesson_edit, name='mentor_lesson_edit'),
     path('mentor/lessons/<int:pk>/delete/', views.mentor_lesson_delete, name='mentor_lesson_delete'),
 
+    path('mentor/lessons/<int:pk>/file/download/', views.mentor_lesson_file_download, name='mentor_lesson_file_download'),
+    path('mentor/lessons/<int:pk>/file/retry/', views.mentor_lesson_file_retry, name='mentor_lesson_file_retry'),
+    path('mentor/lessons/<int:pk>/file/remove/', views.mentor_lesson_file_remove, name='mentor_lesson_file_remove'),
     path('mentor/quizzes/', views.mentor_quizzes, name='mentor_quizzes'),
     path('mentor/quizzes/create/', views.mentor_quiz_create, name='mentor_quiz_create'),
     path('mentor/quizzes/<int:pk>/edit/', views.mentor_quiz_edit, name='mentor_quiz_edit'),
     path('mentor/quizzes/<int:pk>/delete/', views.mentor_quiz_delete, name='mentor_quiz_delete'),
     path('mentor/quizzes/<int:pk>/questions/', views.mentor_quiz_questions, name='mentor_quiz_questions'),
     path('mentor/quizzes/<int:pk>/questions/<int:question_id>/delete/', views.mentor_question_delete, name='mentor_question_delete'),
+    path('mentor/quizzes/<int:pk>/questions/<int:question_id>/edit/', views.mentor_question_edit, name='mentor_question_edit'),
+    path('mentor/quizzes/<int:pk>/preview/', views.mentor_quiz_preview, name='mentor_quiz_preview'),
+    path('mentor/grading/', views.mentor_grading, name='mentor_grading'),
+    path('mentor/grading/<int:attempt_id>/', views.mentor_grade_attempt, name='mentor_grade_attempt'),
 
     # Student progress + printing (Mentor)
     path('mentor/progress/', views.mentor_progress_overview, name='mentor_progress_overview'),

@@ -2,7 +2,9 @@ import re
 
 from django import forms
 from django.contrib.auth.models import User
-from .models import Profile, Lesson, Quiz, Classroom, PolicySettings
+from .models import Profile, Lesson, Quiz, Question, Classroom, PolicySettings
+from . import quizzing
+from . import lessonfiles
 
 TEXT_INPUT_CLASSES = (
     "w-full border border-slate-300 rounded-lg px-4 py-2 text-sm "
@@ -237,6 +239,20 @@ class ProfileUpdateForm(forms.ModelForm):
 class LessonForm(forms.ModelForm):
     """Slug is auto-generated from the title in the view, so it's not
     included here — Mentors just type a title."""
+    file = forms.FileField(
+        required=False, label="Lesson file (PDF, Word or PowerPoint)",
+        widget=forms.ClearableFileInput(attrs={'accept': '.pdf,.docx,.pptx', 'class': 'text-sm'}))
+    remove_file = forms.BooleanField(required=False, label="Remove the current file")
+
+    def clean_file(self):
+        upload = self.cleaned_data.get('file')
+        if upload:
+            try:
+                lessonfiles.inspect_upload(upload)
+            except lessonfiles.UploadRejected as exc:
+                raise forms.ValidationError(str(exc))
+        return upload
+
     class Meta:
         model = Lesson
         fields = ['classroom', 'title', 'order', 'content', 'is_published']
@@ -290,7 +306,7 @@ class QuizForm(forms.ModelForm):
 
     class Meta:
         model = Quiz
-        fields = ['classroom', 'title', 'description', 'instructions', 'lesson', 'is_published',
+        fields = ['classroom', 'title', 'description', 'instructions', 'lesson', 'require_lesson_first', 'is_published',
                   'start_datetime', 'deadline_datetime', 'allow_late_submissions']
         widgets = {
             'classroom': forms.Select(attrs={'class': TEXT_INPUT_CLASSES}),
@@ -302,6 +318,7 @@ class QuizForm(forms.ModelForm):
             }),
             'lesson': forms.Select(attrs={'class': TEXT_INPUT_CLASSES}),
             'is_published': forms.CheckboxInput(attrs={'class': 'h-4 w-4'}),
+            'require_lesson_first': forms.CheckboxInput(attrs={'class': 'h-4 w-4'}),
             'allow_late_submissions': forms.CheckboxInput(attrs={'class': 'h-4 w-4'}),
         }
 
@@ -334,6 +351,14 @@ class QuizForm(forms.ModelForm):
             cleaned['deadline_datetime'] = None
             self.errors.pop('deadline_datetime', None)
 
+        # A quiz can only be published when every question is complete.
+        if cleaned.get('is_published') and self.instance and self.instance.pk:
+            for problem in quizzing.quiz_problems(self.instance):
+                self.add_error('is_published', problem)
+
+        if cleaned.get('require_lesson_first') and not cleaned.get('lesson'):
+            self.add_error('require_lesson_first', 'Choose a linked lesson first, or untick this.')
+
         # A linked lesson has to live in the same classroom as the quiz.
         lesson, classroom = cleaned.get('lesson'), cleaned.get('classroom')
         if lesson and classroom and lesson.classroom_id != classroom.pk:
@@ -342,22 +367,69 @@ class QuizForm(forms.ModelForm):
 
 
 # ---------------------------------------------------------
-# MENTOR — Question + 4 choices (fixed-choice-count form, not a ModelForm)
+# MENTOR — one question of any type (multiple choice, essay, fill in the blank)
 # ---------------------------------------------------------
-class QuestionForm(forms.Form):
-    text = forms.CharField(
-        label="Question",
-        widget=forms.TextInput(attrs={'class': TEXT_INPUT_CLASSES}),
-    )
-    choice_1 = forms.CharField(label="Choice 1", widget=forms.TextInput(attrs={'class': TEXT_INPUT_CLASSES}))
-    choice_2 = forms.CharField(label="Choice 2", widget=forms.TextInput(attrs={'class': TEXT_INPUT_CLASSES}))
-    choice_3 = forms.CharField(label="Choice 3", widget=forms.TextInput(attrs={'class': TEXT_INPUT_CLASSES}))
-    choice_4 = forms.CharField(label="Choice 4", widget=forms.TextInput(attrs={'class': TEXT_INPUT_CLASSES}))
-    correct_choice = forms.ChoiceField(
-        label="Correct answer",
-        choices=[('1', 'Choice 1'), ('2', 'Choice 2'), ('3', 'Choice 3'), ('4', 'Choice 4')],
-        widget=forms.RadioSelect,
-    )
+class QuestionEditForm(forms.Form):
+    """Validates a question exactly as it will be graded.
+
+    The type-specific parts (choices, accepted answers) are read straight from the
+    posted data, so the page can add or remove choices freely."""
+    qtype = forms.ChoiceField(choices=Question.TYPE_CHOICES)
+    text = forms.CharField(max_length=500, widget=forms.Textarea(attrs={'class': TEXT_INPUT_CLASSES, 'rows': 3}))
+    points = forms.IntegerField(min_value=1, max_value=quizzing.MAX_POINTS, initial=1)
+    allow_multiple = forms.BooleanField(required=False)
+    case_sensitive = forms.BooleanField(required=False)
+    guide = forms.CharField(required=False, max_length=2000, widget=forms.Textarea(attrs={'class': TEXT_INPUT_CLASSES, 'rows': 3}))
+
+    def clean_text(self):
+        return (self.cleaned_data['text'] or '').strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        qtype, text = cleaned.get('qtype'), cleaned.get('text')
+        if not qtype or not text:
+            return cleaned
+
+        if qtype == Question.TYPE_MC:
+            texts = [t.strip() for t in self.data.getlist('choice_text')]
+            correct_idx = set(self.data.getlist('choice_correct'))
+            choices = [(t, str(i) in correct_idx) for i, t in enumerate(texts) if t]
+            if len(choices) < quizzing.MIN_CHOICES:
+                self.add_error(None, 'Add at least 2 choices.')
+            elif len(choices) > quizzing.MAX_CHOICES:
+                self.add_error(None, f'Use at most {quizzing.MAX_CHOICES} choices.')
+            elif len({normalize_choice(t) for t, _ in choices}) != len(choices):
+                self.add_error(None, 'Two choices are the same. Make each choice different.')
+            else:
+                right = sum(1 for _, ok in choices if ok)
+                if right == 0:
+                    self.add_error(None, 'Mark the correct choice.')
+                elif right > 1 and not cleaned.get('allow_multiple'):
+                    self.add_error(None, 'You marked several correct choices. Tick "More than one correct answer" or keep just one.')
+                elif right == 1 and cleaned.get('allow_multiple'):
+                    self.add_error(None, '"More than one correct answer" is ticked but only one choice is marked. Mark at least two, or untick it.')
+            cleaned['choices'] = choices
+
+        elif qtype == Question.TYPE_FILL:
+            n = text.count(Question.BLANK_TOKEN)
+            blanks = {}
+            if n == 0:
+                self.add_error('text', f'Put {Question.BLANK_TOKEN} where the student should type the answer, e.g. "Java is a {Question.BLANK_TOKEN} language."')
+            elif n > quizzing.MAX_BLANKS:
+                self.add_error('text', f'Use at most {quizzing.MAX_BLANKS} blanks.')
+            else:
+                for i in range(1, n + 1):
+                    lines = [ln.strip() for ln in (self.data.get(f'blank_answers_{i}') or '').splitlines()]
+                    lines = [ln for ln in lines if ln]
+                    if not lines:
+                        self.add_error(None, f'Blank {i} needs at least one accepted answer.')
+                    blanks[i] = lines[:20]
+            cleaned['blanks'] = blanks
+        return cleaned
+
+
+def normalize_choice(t):
+    return ' '.join(t.split()).casefold()
 
 
 # ---------------------------------------------------------

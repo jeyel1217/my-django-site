@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Profile, Lesson, LessonProgress,
-    Quiz, Question, Choice, QuizAttempt,
+    Quiz, Question, Choice, QuizAttempt, BlankAnswer, AttemptAnswer, LessonFile,
     Badge, UserBadge,
 )
 
@@ -40,5 +40,9 @@ admin.site.register(Quiz, QuizAdmin)
 admin.site.register(Question, QuestionAdmin)
 admin.site.register(Choice)
 admin.site.register(QuizAttempt)
+admin.site.register(BlankAnswer)
+admin.site.register(AttemptAnswer)
 admin.site.register(Badge)
 admin.site.register(UserBadge)
+
+admin.site.register(LessonFile)

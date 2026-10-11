@@ -11,7 +11,7 @@
             {% if is_edit %}Edit Lesson{% else %}New Lesson{% endif %}
         </h2>
 
-        <form method="POST" class="space-y-5">
+        <form method="POST" enctype="multipart/form-data" class="space-y-5">
             {% csrf_token %}
 
             <div>
@@ -39,6 +39,30 @@
                 {% if form.content.errors %}<p class="text-xs text-red-600 mt-1">{{ form.content.errors|join:", " }}</p>{% endif %}
             </div>
 
+            <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+                <p class="text-slate-500 text-xs font-semibold">LESSON FILE <span class="font-normal text-slate-400">&middot; optional</span></p>
+                {% if lf %}
+                    <div class="text-sm text-slate-700">
+                        <p><i class="fa-regular fa-file-lines"></i> <strong>{{ lf.original_name }}</strong> <span class="text-slate-400">&middot; {{ lf.kind_label }} &middot; {{ lf.size|filesizeformat }}</span></p>
+                        {% if lf.conversion_status == 'READY' %}
+                            <p class="text-xs text-emerald-700 mt-1"><i class="fa-solid fa-circle-check"></i> Ready: {{ lf.page_count }} page{{ lf.page_count|pluralize }}, shown page by page to students.</p>
+                        {% else %}
+                            <p class="text-xs text-amber-700 mt-1"><i class="fa-solid fa-triangle-exclamation"></i> {{ lf.get_conversion_status_display }}. {{ lf.conversion_message }}</p>
+                        {% endif %}
+                        <p class="text-xs text-slate-400 mt-1">Uploading a new file replaces this one. Students who were part-way start the new file from page 1; completed lessons stay completed.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2" id="file-actions">
+                        <a href="{% url 'mentor_lesson_file_download' lesson.pk %}" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-white">Download original</a>
+                    </div>
+                {% endif %}
+                <div>
+                    {{ form.file }}
+                    {% if form.file.errors %}<p class="text-xs text-red-600 mt-1">{{ form.file.errors|join:" " }}</p>{% endif %}
+                    <p class="text-xs text-slate-400 mt-1">PDF, Word (.docx) or PowerPoint (.pptx), up to {{ max_mb }} MB. The file's content is checked, not just its name.</p>
+                </div>
+                {% if lf %}<label class="flex items-center gap-2 text-sm text-slate-700">{{ form.remove_file }} Remove the current file</label>{% endif %}
+            </div>
+
             <div class="flex items-center gap-2">
                 {{ form.is_published }}
                 <label class="text-sm text-slate-700">Published (visible to Students)</label>
@@ -55,6 +79,13 @@
                 </a>
             </div>
         </form>
+
+        {% if lf and lf.conversion_status != 'READY' and lf.kind != 'PDF' %}
+        <form method="POST" action="{% url 'mentor_lesson_file_retry' lesson.pk %}" class="mt-4">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Try converting again</button>
+        </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

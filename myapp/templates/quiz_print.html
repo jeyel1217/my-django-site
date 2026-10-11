@@ -118,10 +118,18 @@
 
         {% for q in questions %}
             <div class="question">
-                <div class="q">{{ q.number }}. {{ q.text }}</div>
-                {% for c in q.choices %}
-                    <div class="choice{% if show_key and c.correct %} correct{% endif %}">{{ c.letter }}. {{ c.text }}{% if show_key and c.correct %} &#10003;{% endif %}</div>
-                {% endfor %}
+                {% if q.type == 'FILL' %}
+                    <div class="q">{{ q.number }}. {% for part in q.parts %}{{ part }}{% if not forloop.last %}____________{% endif %}{% endfor %} <span style="font-weight:400">({{ q.points }} pt{{ q.points|pluralize }})</span></div>
+                    {% if show_key %}{% for b in q.blanks %}<div class="choice correct">Blank {{ b.n }}: {{ b.answers|join:" / " }}</div>{% endfor %}{% endif %}
+                {% elif q.type == 'ESSAY' %}
+                    <div class="q">{{ q.number }}. {{ q.text }} <span style="font-weight:400">({{ q.points }} pt{{ q.points|pluralize }}, essay)</span></div>
+                    {% if not show_key %}<div style="margin:6px 0 0 22px">{% for i in "12345678" %}<div style="border-bottom:1px solid #000;height:20px"></div>{% endfor %}</div>{% endif %}
+                {% else %}
+                    <div class="q">{{ q.number }}. {{ q.text }} <span style="font-weight:400">({{ q.points }} pt{{ q.points|pluralize }}{% if q.multi %}, choose all that apply{% endif %})</span></div>
+                    {% for c in q.choices %}
+                        <div class="choice{% if show_key and c.correct %} correct{% endif %}">{{ c.letter }}. {{ c.text }}{% if show_key and c.correct %} &#10003;{% endif %}</div>
+                    {% endfor %}
+                {% endif %}
             </div>
         {% empty %}
             <p class="empty">(No questions yet)</p>

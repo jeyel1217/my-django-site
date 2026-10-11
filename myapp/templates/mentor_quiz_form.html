@@ -44,6 +44,12 @@
                 {% if form.lesson.errors %}<p class="text-xs text-red-600 mt-1">{{ form.lesson.errors|join:", " }}</p>{% endif %}
             </div>
 
+            <div>
+                <label class="flex items-center gap-2 text-sm text-slate-700">{{ form.require_lesson_first }} Students must complete the linked lesson before they can open this quiz</label>
+                {% if form.require_lesson_first.errors %}<p class="text-xs text-red-600 mt-1">{{ form.require_lesson_first.errors|join:" " }}</p>{% endif %}
+                <p class="text-xs text-slate-400 mt-1">The lesson page always shows a "Proceed to Quiz" button for its quiz. With this ticked the button stays locked, and the server refuses the quiz, until the lesson is completed.</p>
+            </div>
+
             <!-- Schedule. All times are Philippine Time (UTC+8). -->
             <div class="border border-slate-200 rounded-lg p-4 space-y-4 bg-slate-50">
                 <p class="text-slate-500 text-xs font-semibold">SCHEDULE <span class="font-normal text-slate-400">&middot; Philippine Time</span></p>
