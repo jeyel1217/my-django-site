@@ -40,6 +40,7 @@ urlpatterns = [
 
     # Classroom actions (Mentor of that classroom, or Admin; POST only)
     path('classrooms/<int:pk>/regenerate-code/', views.classroom_regenerate_code, name='classroom_regenerate_code'),
+    path('classrooms/<int:pk>/gradebook/', views.classroom_gradebook, name='classroom_gradebook'),
     path('classrooms/<int:pk>/toggle-code/', views.classroom_toggle_code, name='classroom_toggle_code'),
     path('classrooms/<int:pk>/students/<int:student_id>/remove/', views.classroom_remove_student, name='classroom_remove_student'),
     path('classrooms/<int:pk>/students/<int:student_id>/restore/', views.classroom_restore_student, name='classroom_restore_student'),

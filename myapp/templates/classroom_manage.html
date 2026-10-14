@@ -9,9 +9,13 @@
             <p class="text-slate-500 text-sm mt-1">Mentor: {{ room.mentor_name }}{% if room.description %} &middot; {{ room.description }}{% endif %}</p>
             <p class="text-xs text-slate-400">Classroom ID #{{ room.pk }} &middot; created {{ room.created_at|date:"M d, Y" }}</p>
         </div>
-        {% if not is_admin %}
-        <a href="{% url 'mentor_classroom_edit' room.pk %}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Edit details</a>
-        {% endif %}
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{% url 'classroom_gradebook' room.pk %}" class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800"><i class="fa-solid fa-file-excel"></i> Download gradebook (Excel)</a>
+            <a href="{% url 'classroom_gradebook' room.pk %}?format=csv" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-semibold hover:bg-slate-50">CSV</a>
+            {% if not is_admin %}
+            <a href="{% url 'mentor_classroom_edit' room.pk %}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50">Edit details</a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Join code -->

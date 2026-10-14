@@ -1,6 +1,6 @@
 import secrets
 from datetime import timedelta
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -42,6 +42,7 @@ from . import progress as prog
 from . import badges as badge_rules
 from . import quizzing
 from . import lessonfiles
+from . import gradebook
 from .lesson_views import (  # noqa: F401  (routed from urls.py)
     lesson_file_stream, mentor_lesson_file_download, mentor_lesson_file_retry, mentor_lesson_file_remove,
     lesson_progress_save, readable_lesson,
@@ -1616,6 +1617,29 @@ def _staff_classroom_or_404(request, pk):
 
 def _back_to_classroom(room, is_admin):
     return redirect('admin_classroom_detail' if is_admin else 'mentor_classroom_detail', pk=room.pk)
+
+
+@login_required
+@role_required(Profile.ROLE_MENTOR, Profile.ROLE_ADMIN)
+@local_time
+def classroom_gradebook(request, pk):
+    """Download every student's grades for one classroom (Excel, or ?format=csv).
+    A Mentor can only get their own classroom (another one is a 404); an Admin any."""
+    room, _is_admin = _staff_classroom_or_404(request, pk)
+    data = gradebook.build(room)
+    AuditLog.record(request.user, 'gradebook_downloaded', room.mentor, f'Classroom "{room.name}" (#{room.pk})')
+    stem = f'gradebook-{slugify(room.name) or room.pk}-{data["generated"].strftime("%Y-%m-%d")}'
+    if request.GET.get('format') == 'csv':
+        response = HttpResponse(gradebook.to_csv(data), content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{stem}.csv"'
+    else:
+        response = HttpResponse(
+            gradebook.to_xlsx(data),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{stem}.xlsx"'
+    response['Cache-Control'] = 'no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @login_required
